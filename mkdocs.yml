@@ -1,0 +1,38 @@
+site_name: BRDF Monthly Priors
+site_description: Schema-versioned monthly BRDF prior composites for SIAC and other remote-sensing pipelines.
+site_url: https://MarcYin.github.io/brdf-monthly-priors/
+repo_url: https://github.com/MarcYin/brdf-monthly-priors
+repo_name: MarcYin/brdf-monthly-priors
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.instant
+    - content.code.copy
+    - toc.follow
+  palette:
+    - scheme: default
+      primary: teal
+      accent: amber
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Provider API: api.md
+  - CLI: cli.md
+  - Persistence Schema: schema.md
+  - SIAC Integration: siac-integration.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            docstring_style: google
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - toc:
+      permalink: true
