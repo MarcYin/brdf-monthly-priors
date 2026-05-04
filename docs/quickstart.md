@@ -29,6 +29,7 @@ from brdf_monthly_priors.sources import EdownGeeSource
 source = EdownGeeSource.for_product(
     "mcd43a1",
     temporal_ranges=(("2024-07-01", "2024-07-31"),),
+    sample_every_days=7,
     output_root=".brdf-gee-cache",
 )
 
@@ -40,7 +41,7 @@ product = provider.build_prior(
 )
 ```
 
-The temporal range is explicit caller policy. `edown` may derive a source-native grid from the downloaded GeoTIFFs; no raster reprojection is done by this package.
+The temporal range is explicit caller policy. `edown` may derive a source-native grid from the downloaded GeoTIFFs; no raster reprojection is done by this package. With `sample_every_days=7`, the source queries one-day windows on `2024-07-01`, `2024-07-08`, `2024-07-15`, `2024-07-22`, and `2024-07-29` instead of every matching image in July.
 
 ## Build From A Custom Source
 

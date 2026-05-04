@@ -8,6 +8,7 @@ from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
+from brdf_monthly_priors.temporal import sample_temporal_ranges, temporal_ranges_name
 from brdf_monthly_priors.types import MODIS_SINUSOIDAL_CRS, GridSpec, Observation
 
 MCD43A1_COLLECTION_ID = "MODIS/061/MCD43A1"
@@ -109,16 +110,25 @@ class EdownGeeSource:
         overwrite: bool = False,
         fail_on_download_error: bool = True,
         quality_nodata_values: Optional[Sequence[int]] = None,
+        sample_every_days: Optional[int] = None,
     ):
         if not temporal_ranges:
             raise ValueError("EdownGeeSource requires explicit temporal_ranges supplied by the caller")
         self.collection_id = str(collection_id)
         self.temporal_ranges = tuple((str(start), str(end)) for start, end in temporal_ranges)
+        self.sample_every_days = None if sample_every_days is None else int(sample_every_days)
+        self.query_temporal_ranges = sample_temporal_ranges(
+            self.temporal_ranges,
+            sample_every_days=self.sample_every_days,
+        )
         self.output_root = Path(output_root).expanduser().resolve()
         self.band_map = dict(band_map)
         self.quality_band_map = dict(quality_band_map)
         self.scale_map = dict(scale_map or {})
-        temporal_key = ",".join(f"{start}..{end}" for start, end in self.temporal_ranges)
+        temporal_key = temporal_ranges_name(
+            self.temporal_ranges,
+            sample_every_days=self.sample_every_days,
+        )
         self._name = name or f"gee-edown:{self.collection_id}:{temporal_key}"
         self.manifest_dir = (
             Path(manifest_dir).expanduser().resolve()
@@ -215,7 +225,12 @@ class EdownGeeSource:
             band_map=self.band_map,
             quality_band_map=self.quality_band_map,
         )
-        key = (tuple(float(value) for value in wgs84_bounds), requested_bands, bands)
+        key = (
+            tuple(float(value) for value in wgs84_bounds),
+            requested_bands,
+            bands,
+            self.query_temporal_ranges,
+        )
         if self._download_cache_key == key and self._download_cache:
             return self._download_cache
 
@@ -230,7 +245,7 @@ class EdownGeeSource:
             _install_edown_sinusoidal_compatibility()
 
         summaries = []
-        for start, end in self.temporal_ranges:
+        for start, end in self.query_temporal_ranges:
             manifest_path = self.manifest_dir / _manifest_name(
                 collection_id=self.collection_id,
                 start=start,

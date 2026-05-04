@@ -12,6 +12,7 @@ from brdf_monthly_priors.sources.earthaccess import EarthaccessSource, product_c
 from brdf_monthly_priors.sources.gee import EdownGeeSource
 from brdf_monthly_priors.sources.local import LocalNpzSource
 from brdf_monthly_priors.sources.rasterio_reader import NativeRasterioStackReader
+from brdf_monthly_priors.temporal import temporal_ranges_name
 from brdf_monthly_priors.types import DEFAULT_BANDS, DEFAULT_BRDF_CRS
 
 
@@ -56,6 +57,16 @@ def build_parser() -> argparse.ArgumentParser:
         metavar=("START", "END"),
         default=[],
         help="Explicit source temporal range. Repeat as needed. Planning remains caller-owned.",
+    )
+    build.add_argument(
+        "--sample-every-days",
+        type=_positive_int,
+        default=None,
+        metavar="DAYS",
+        help=(
+            "For GEE or Earthaccess inputs, query one-day windows every DAYS inside each "
+            "temporal range to reduce downloads."
+        ),
     )
     build.add_argument(
         "--gee-band",
@@ -196,6 +207,7 @@ def _provider_config(args: argparse.Namespace) -> ProviderConfig:
                 temporal_ranges=tuple(tuple(value) for value in args.temporal_range),
                 output_root=output_root,
                 overwrite=args.edown_overwrite,
+                sample_every_days=args.sample_every_days,
             )
         else:
             band_map = _parse_band_patterns(args.gee_band)
@@ -216,6 +228,7 @@ def _provider_config(args: argparse.Namespace) -> ProviderConfig:
                 band_map=band_map,
                 quality_band_map=quality_band_map,
                 overwrite=args.edown_overwrite,
+                sample_every_days=args.sample_every_days,
             )
     elif getattr(args, "product", None):
         band_patterns = _parse_band_patterns(args.band_pattern)
@@ -233,7 +246,8 @@ def _provider_config(args: argparse.Namespace) -> ProviderConfig:
                 quality_pattern=args.quality_pattern,
                 sample_index_pattern=args.sample_index_pattern,
             ),
-            name=f"earthaccess:{args.product}",
+            name=f"earthaccess:{args.product}:{_temporal_name(args)}",
+            sample_every_days=args.sample_every_days,
         )
     return ProviderConfig(
         cache_dir=args.cache_dir or Path.home() / ".cache" / "brdf-monthly-priors",
@@ -250,6 +264,20 @@ def _parse_band_patterns(values: Sequence[str]) -> dict[str, str]:
         band, pattern = value.split("=", 1)
         parsed[band] = pattern
     return parsed
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
+def _temporal_name(args: argparse.Namespace) -> str:
+    return temporal_ranges_name(
+        tuple(tuple(value) for value in args.temporal_range),
+        sample_every_days=args.sample_every_days,
+    )
 
 
 def _request_hash(provider: Provider, args: argparse.Namespace) -> str:

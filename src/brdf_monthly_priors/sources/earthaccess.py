@@ -5,6 +5,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Mapping, Optional, Protocol, Sequence, Tuple, Union
 
+from brdf_monthly_priors.temporal import sample_temporal_ranges, temporal_ranges_name
 from brdf_monthly_priors.types import GridSpec, Observation
 
 
@@ -56,8 +57,9 @@ class EarthaccessSource:
         cache_dir: Union[str, Path],
         reader: ProductReader,
         temporal_ranges: Sequence[Tuple[str, str]],
-        name: str = "earthaccess",
+        name: Optional[str] = None,
         login_strategy: str = "netrc",
+        sample_every_days: Optional[int] = None,
     ):
         if not collections:
             raise ValueError("at least one EarthdataCollection is required")
@@ -67,7 +69,20 @@ class EarthaccessSource:
         self.cache_dir = Path(cache_dir).expanduser().resolve()
         self.reader = reader
         self.temporal_ranges = tuple((str(start), str(end)) for start, end in temporal_ranges)
-        self._name = name
+        self.sample_every_days = None if sample_every_days is None else int(sample_every_days)
+        self.query_temporal_ranges = sample_temporal_ranges(
+            self.temporal_ranges,
+            sample_every_days=self.sample_every_days,
+        )
+        collection_key = "+".join(
+            f"{collection.short_name}.{collection.version or 'default'}"
+            for collection in self.collections
+        )
+        temporal_key = temporal_ranges_name(
+            self.temporal_ranges,
+            sample_every_days=self.sample_every_days,
+        )
+        self._name = name or f"earthaccess:{collection_key}:{temporal_key}"
         self.login_strategy = login_strategy
 
     @property
@@ -100,7 +115,7 @@ class EarthaccessSource:
         for collection in self.collections:
             collection_dir = self.cache_dir / collection.short_name
             collection_dir.mkdir(parents=True, exist_ok=True)
-            for start, end in self.temporal_ranges:
+            for start, end in self.query_temporal_ranges:
                 results = earthaccess.search_data(
                     short_name=collection.short_name,
                     version=collection.version,

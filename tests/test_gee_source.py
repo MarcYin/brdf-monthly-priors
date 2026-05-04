@@ -81,14 +81,41 @@ def test_gee_source_maps_quality_fill_to_nodata(tmp_path, monkeypatch):
     assert np.all(product.composite.observation_count[1] == 1)
 
 
+def test_gee_source_samples_temporal_range_before_edown_download(tmp_path, monkeypatch):
+    module = install_fake_edown(monkeypatch, tmp_path)
+    source = EdownGeeSource(
+        collection_id="FAKE/COLLECTION",
+        temporal_ranges=(("2024-07-01", "2024-07-31"),),
+        output_root=tmp_path / "edown",
+        band_map={"iso": "GEE_ISO"},
+        quality_band_map={"iso": "GEE_QA"},
+        sample_every_days=7,
+    )
+
+    source._download(wgs84_bounds=(0, 0, 1, 1), band_names=("iso",))
+
+    assert source.query_temporal_ranges == (
+        ("2024-07-01", "2024-07-01"),
+        ("2024-07-08", "2024-07-08"),
+        ("2024-07-15", "2024-07-15"),
+        ("2024-07-22", "2024-07-22"),
+        ("2024-07-29", "2024-07-29"),
+    )
+    assert "sample-every-7-days" in source.name
+    assert [(config.start_date, config.end_date) for config in module.download_configs] == list(
+        source.query_temporal_ranges
+    )
+
+
 def install_fake_edown(
     monkeypatch,
     tmp_path: Path,
     *,
     data: Optional[np.ndarray] = None,
     quality: Optional[np.ndarray] = None,
-) -> None:
+) -> types.ModuleType:
     module = types.ModuleType("edown")
+    module.download_configs = []
 
     class AOI:
         @classmethod
@@ -112,10 +139,12 @@ def install_fake_edown(
             self.failed = 0
 
     def download_images(config):
+        module.download_configs.append(config)
         assert config.collection_id == "FAKE/COLLECTION"
         assert config.bands == ("GEE_ISO", "GEE_QA")
         assert config.rename_map == {"GEE_ISO": "iso"}
-        path = tmp_path / "edown" / "images" / "fake.tif"
+        safe_date = str(config.start_date).replace("-", "")
+        path = tmp_path / "edown" / "images" / f"fake-{safe_date}.tif"
         path.parent.mkdir(parents=True, exist_ok=True)
         data_array = (
             np.array([[0.25, 0.50], [0.75, 1.0]], dtype="float32") if data is None else data
@@ -146,3 +175,4 @@ def install_fake_edown(
     module.DownloadConfig = DownloadConfig
     module.download_images = download_images
     monkeypatch.setitem(sys.modules, "edown", module)
+    return module

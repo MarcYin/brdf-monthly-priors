@@ -44,6 +44,8 @@ brdf-monthly-priors build \
 ## Earthaccess Input
 
 Earthaccess builds need explicit temporal ranges. The package does not plan months or years.
+Use `--sample-every-days` to query one-day windows at a fixed stride inside
+each range when a full range would download more observations than needed.
 
 ```bash
 pip install "brdf-monthly-priors[earthdata]"
@@ -54,6 +56,7 @@ brdf-monthly-priors build \
   --product-id mcd19-prior \
   --product mcd19 \
   --temporal-range 2024-07-01 2024-07-31 \
+  --sample-every-days 7 \
   --wgs84-bounds -2.0 51.0 -1.0 52.0 \
   --resolution 0.005 \
   --band brdf_iso_red \
@@ -78,11 +81,15 @@ brdf-monthly-priors build \
   --product-id mcd43a1-prior \
   --gee-product mcd43a1 \
   --temporal-range 2024-07-01 2024-07-31 \
+  --sample-every-days 7 \
   --wgs84-bounds -2.0 51.0 -1.0 52.0 \
   --resolution 500 \
   --cache-dir .brdf-cache \
   --edown-output-root .brdf-gee-cache
 ```
+
+For the July range above, `--sample-every-days 7` queries `2024-07-01`,
+`2024-07-08`, `2024-07-15`, `2024-07-22`, and `2024-07-29`.
 
 For a generic Earth Engine ImageCollection, pass the collection ID and explicit data/quality band mappings:
 
@@ -91,6 +98,7 @@ brdf-monthly-priors build \
   --product-id custom-gee-prior \
   --gee-collection-id MODIS/061/MCD43A1 \
   --temporal-range 2024-07-01 2024-07-31 \
+  --sample-every-days 7 \
   --wgs84-bounds -2.0 51.0 -1.0 52.0 \
   --resolution 500 \
   --band brdf_iso_red \

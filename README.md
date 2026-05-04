@@ -98,7 +98,7 @@ pytest
 
 ## Google Earth Engine Input
 
-The built-in GEE preset uses `edown` to download `MODIS/061/MCD43A1` native-grid GeoTIFF observations. By default it requests `iso`, `vol`, and `geo` BRDF coefficients for red, green, blue, NIR, SWIR1, and SWIR2. The caller still supplies explicit temporal ranges; this package does not decide which days, months, or history windows to use.
+The built-in GEE preset uses `edown` to download `MODIS/061/MCD43A1` native-grid GeoTIFF observations. By default it requests `iso`, `vol`, and `geo` BRDF coefficients for red, green, blue, NIR, SWIR1, and SWIR2. The caller still supplies explicit temporal ranges; this package does not decide which days, months, or history windows to use. To reduce downloads, pass `sample_every_days` to query one-day windows at a fixed stride inside each temporal range.
 
 ```python
 from brdf_monthly_priors import Provider, ProviderConfig
@@ -107,6 +107,7 @@ from brdf_monthly_priors.sources import EdownGeeSource
 source = EdownGeeSource.for_product(
     "mcd43a1",
     temporal_ranges=(("2024-07-01", "2024-07-31"),),
+    sample_every_days=7,
     output_root=".brdf-gee-cache",
 )
 
@@ -117,6 +118,10 @@ product = provider.build_prior(
     resolution=500.0,
 )
 ```
+
+With `sample_every_days=7`, the July range above queries `2024-07-01`,
+`2024-07-08`, `2024-07-15`, `2024-07-22`, and `2024-07-29` instead of every
+matching image in the month.
 
 `edown` handles Earth Engine authentication using `GEE_SERVICE_ACCOUNT`/`GEE_SERVICE_ACCOUNT_KEY`, existing Earth Engine user credentials, or Google Application Default Credentials.
 
@@ -139,6 +144,7 @@ brdf-monthly-priors build \
   --product-id mcd43a1-prior \
   --gee-product mcd43a1 \
   --temporal-range 2024-07-01 2024-07-31 \
+  --sample-every-days 7 \
   --wgs84-bounds -2.0 51.0 -1.0 52.0 \
   --resolution 500 \
   --cache-dir .brdf-cache \

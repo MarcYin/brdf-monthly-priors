@@ -5,7 +5,7 @@
 The package boundary is intentionally narrow:
 
 - Accept observations that are already on the native MODIS/VIIRS grid, usually Sinusoidal.
-- Fetch Google Earth Engine BRDF observations through `edown` when configured.
+- Fetch Google Earth Engine BRDF observations through `edown` when configured, optionally sampling one day every `N` days to reduce downloads.
 - Composite the best pixel per BRDF band using quality and sample-index tie-breaks.
 - Encode the prior as `uint16` with scale factor `10000`.
 - Encode relative uncertainty as `uint8` percent from `0` to `200`, with `255` marking suspicious or missing uncertainty.
