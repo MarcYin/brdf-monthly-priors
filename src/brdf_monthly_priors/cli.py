@@ -160,7 +160,7 @@ def _build(args: argparse.Namespace) -> int:
         path = stac_item_path(provider.store.root, request_hash)
         print(f"request_hash={request_hash}")
         print(f"stac_item={path}")
-        print("assets=prior.tif,uncertainty.tif")
+        print("assets=single-band-prior-and-uncertainty-geotiffs")
     return 0
 
 

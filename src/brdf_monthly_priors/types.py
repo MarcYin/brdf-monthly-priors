@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
-SCHEMA_VERSION = "brdf-monthly-priors/v2"
+SCHEMA_VERSION = "brdf-monthly-priors/v3"
 STAC_VERSION = "1.0.0"
 PROJECTION_EXTENSION = "https://stac-extensions.github.io/projection/v1.1.0/schema.json"
 RASTER_EXTENSION = "https://stac-extensions.github.io/raster/v1.1.0/schema.json"

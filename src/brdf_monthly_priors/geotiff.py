@@ -35,6 +35,28 @@ def write_prior_geotiff(
     )
 
 
+def write_prior_band_geotiff(
+    path: str | Path,
+    *,
+    composite: PriorComposite,
+    band_index: int,
+    encoding: EncodingConfig = DEFAULT_ENCODING,
+    tile_size: int = 512,
+) -> Path:
+    band_name = composite.band_names[band_index]
+    return write_tiled_geotiff(
+        path,
+        grid=composite.grid,
+        band_names=(band_name,),
+        array=encode_prior(composite.data[band_index : band_index + 1], encoding),
+        dtype="uint16",
+        nodata=encoding.prior_nodata,
+        scales=(1.0 / float(encoding.scale_factor),),
+        units=("1",),
+        tile_size=tile_size,
+    )
+
+
 def write_uncertainty_geotiff(
     path: str | Path,
     *,
@@ -51,6 +73,31 @@ def write_uncertainty_geotiff(
         nodata=encoding.uncertainty_nodata,
         scales=[1.0] * len(composite.band_names),
         units=["percent"] * len(composite.band_names),
+        tile_size=tile_size,
+    )
+
+
+def write_uncertainty_band_geotiff(
+    path: str | Path,
+    *,
+    composite: PriorComposite,
+    band_index: int,
+    encoding: EncodingConfig = DEFAULT_ENCODING,
+    tile_size: int = 512,
+) -> Path:
+    band_name = f"{composite.band_names[band_index]}_relative_uncertainty"
+    return write_tiled_geotiff(
+        path,
+        grid=composite.grid,
+        band_names=(band_name,),
+        array=encode_relative_uncertainty(
+            composite.uncertainty[band_index : band_index + 1],
+            encoding,
+        ),
+        dtype="uint8",
+        nodata=encoding.uncertainty_nodata,
+        scales=(1.0,),
+        units=("percent",),
         tile_size=tile_size,
     )
 

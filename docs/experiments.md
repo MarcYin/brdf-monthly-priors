@@ -75,20 +75,20 @@ runs/gee-vs-official-mcd43a1/
   official-earthdata-downloads/
   gee-prior/<request-hash>/
     stac-item.json
-    assets/prior.tif
-    assets/uncertainty.tif
+    assets/prior/<index>-<band>.tif
+    assets/uncertainty/<index>-<band>.tif
   official-prior/<request-hash>/
     stac-item.json
-    assets/prior.tif
-    assets/uncertainty.tif
+    assets/prior/<index>-<band>.tif
+    assets/uncertainty/<index>-<band>.tif
 ```
 
 The comparison summary reports:
 
 - Native processing grid used for both products.
 - Count of official granules downloaded and count of official observations that overlapped the GEE grid.
-- Whether encoded `prior.tif` arrays are byte-for-byte equal.
-- Whether encoded `uncertainty.tif` arrays are byte-for-byte equal.
+- Whether encoded prior arrays are byte-for-byte equal after one-band GeoTIFF encoding.
+- Whether encoded uncertainty arrays are byte-for-byte equal after one-band GeoTIFF encoding.
 - Per-band valid pixel count, maximum absolute float difference, mean absolute float difference, and encoded equal pixel count.
 - Per-band scatter statistics: RMSE, signed bias, median absolute difference, 95th percentile absolute difference, Pearson `r`, `R2`, and linear fit slope/intercept.
 
@@ -133,8 +133,8 @@ produced a `6 x 12` native Sinusoidal grid at `463.3127165279165 m` resolution.
 | Official observations overlapping the GEE grid | `1` |
 | Spectral bands covered | RGB, NIR, SWIR1, SWIR2 |
 | BRDF coefficient bands covered | `18` |
-| Encoded `prior.tif` arrays equal | `true` |
-| Encoded `uncertainty.tif` arrays equal | `true` |
+| Encoded prior arrays equal | `true` |
+| Encoded uncertainty arrays equal | `true` |
 | Valid pixels per band | `63 / 72` |
 | Maximum absolute float prior difference | `2.98e-08` |
 | Maximum absolute float uncertainty difference | `0.0` |

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
 
@@ -9,8 +10,8 @@ import numpy as np
 
 from brdf_monthly_priors._version import __version__
 from brdf_monthly_priors.encoding import decode_prior, decode_relative_uncertainty
-from brdf_monthly_priors.geotiff import write_prior_geotiff, write_uncertainty_geotiff
-from brdf_monthly_priors.stac import build_stac_item, normalize_href
+from brdf_monthly_priors.geotiff import write_prior_band_geotiff, write_uncertainty_band_geotiff
+from brdf_monthly_priors.stac import asset_stem, build_stac_item, normalize_href
 from brdf_monthly_priors.types import (
     DEFAULT_PRIOR_NODATA,
     SCHEMA_VERSION,
@@ -38,7 +39,15 @@ class CompositeStore:
         return self.root / request_hash
 
     def has_product(self, request_hash: str) -> bool:
-        return (self.product_dir(request_hash) / STAC_ITEM_NAME).exists()
+        stac_path = self.product_dir(request_hash) / STAC_ITEM_NAME
+        if not stac_path.exists():
+            return False
+        try:
+            with stac_path.open("r", encoding="utf-8") as handle:
+                stac_item = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            return False
+        return stac_item.get("properties", {}).get("brdf:schema_version") == SCHEMA_VERSION
 
     def save(
         self,
@@ -49,18 +58,34 @@ class CompositeStore:
     ) -> PriorProduct:
         destination = self.product_dir(request_hash)
         assets_dir = destination / "assets"
-        assets_dir.mkdir(parents=True, exist_ok=True)
-        prior_path = write_prior_geotiff(assets_dir / "prior.tif", composite=composite)
-        uncertainty_path = write_uncertainty_geotiff(
-            assets_dir / "uncertainty.tif",
-            composite=composite,
-        )
+        if assets_dir.exists():
+            shutil.rmtree(assets_dir)
+        prior_dir = assets_dir / "prior"
+        uncertainty_dir = assets_dir / "uncertainty"
+        prior_dir.mkdir(parents=True, exist_ok=True)
+        uncertainty_dir.mkdir(parents=True, exist_ok=True)
+        prior_hrefs = []
+        uncertainty_hrefs = []
+        for band_index, band_name in enumerate(composite.band_names):
+            filename = f"{asset_stem(band_index, band_name)}.tif"
+            prior_path = write_prior_band_geotiff(
+                prior_dir / filename,
+                composite=composite,
+                band_index=band_index,
+            )
+            uncertainty_path = write_uncertainty_band_geotiff(
+                uncertainty_dir / filename,
+                composite=composite,
+                band_index=band_index,
+            )
+            prior_hrefs.append(normalize_href(prior_path, destination))
+            uncertainty_hrefs.append(normalize_href(uncertainty_path, destination))
         created_at = utc_now_iso()
         stac_item = build_stac_item(
             composite=composite,
             request_hash=request_hash,
-            prior_href=normalize_href(prior_path, destination),
-            uncertainty_href=normalize_href(uncertainty_path, destination),
+            prior_hrefs=prior_hrefs,
+            uncertainty_hrefs=uncertainty_hrefs,
             created_at=created_at,
         )
         stac_item["properties"]["brdf:schema_version"] = SCHEMA_VERSION
@@ -103,23 +128,26 @@ def load_product(path: Union[str, Path], request: Optional[Mapping[str, Any]] = 
             f"{stac_item['properties'].get('brdf:schema_version')!r}; expected {SCHEMA_VERSION!r}"
         )
 
-    prior_path = source / stac_item["assets"]["prior"]["href"]
-    uncertainty_path = source / stac_item["assets"]["uncertainty"]["href"]
-    with rasterio.open(prior_path) as prior_dataset:
-        prior_encoded = prior_dataset.read()
-        grid = GridSpec(
-            bounds=tuple(float(value) for value in stac_item["proj:bbox"]),
-            crs=prior_dataset.crs.to_wkt() if prior_dataset.crs else stac_item["proj:wkt2"],
-            resolution=abs(float(prior_dataset.transform.a)),
-            width=prior_dataset.width,
-            height=prior_dataset.height,
-            wgs84_bounds=None
-            if stac_item.get("bbox") is None
-            else tuple(float(value) for value in stac_item["bbox"]),
-        )
-        band_names = tuple(prior_dataset.descriptions)
-    with rasterio.open(uncertainty_path) as uncertainty_dataset:
-        uncertainty_encoded = uncertainty_dataset.read()
+    band_names = tuple(str(name) for name in stac_item["properties"].get("brdf:band_names", ()))
+    if not band_names:
+        raise ValueError("STAC item does not declare brdf:band_names")
+
+    prior_encoded, grid = _read_single_band_stack(
+        rasterio,
+        source=source,
+        stac_item=stac_item,
+        kind="prior",
+        band_names=band_names,
+    )
+    uncertainty_encoded, uncertainty_grid = _read_single_band_stack(
+        rasterio,
+        source=source,
+        stac_item=stac_item,
+        kind="uncertainty",
+        band_names=band_names,
+    )
+    if uncertainty_grid.to_dict() != grid.to_dict():
+        raise ValueError("uncertainty assets do not share the prior asset grid")
 
     data = decode_prior(prior_encoded)
     uncertainty = decode_relative_uncertainty(uncertainty_encoded)
@@ -146,6 +174,95 @@ def load_product(path: Union[str, Path], request: Optional[Mapping[str, Any]] = 
         stac_item=stac_item,
         output_dir=str(source),
         package_version=stac_item["properties"].get("brdf:package_version", "unknown"),
+    )
+
+
+def _read_single_band_stack(
+    rasterio_module: Any,
+    *,
+    source: Path,
+    stac_item: Mapping[str, Any],
+    kind: str,
+    band_names: tuple[str, ...],
+) -> tuple[np.ndarray, GridSpec]:
+    arrays = []
+    grid = None
+    reference_signature = None
+    for band_index, asset in enumerate(_ordered_band_assets(stac_item, kind, len(band_names))):
+        href = asset["href"]
+        with rasterio_module.open(_asset_href(source, href)) as dataset:
+            if dataset.count != 1:
+                raise ValueError(f"{href} contains {dataset.count} bands; expected one")
+            asset_band_name = asset.get("brdf:band_name")
+            if asset_band_name != band_names[band_index]:
+                raise ValueError(
+                    f"{href} declares band {asset_band_name!r}; expected {band_names[band_index]!r}"
+                )
+            signature = _dataset_signature(dataset)
+            if reference_signature is None:
+                reference_signature = signature
+                grid = GridSpec(
+                    bounds=tuple(float(value) for value in stac_item["proj:bbox"]),
+                    crs=dataset.crs.to_wkt() if dataset.crs else stac_item["proj:wkt2"],
+                    resolution=abs(float(dataset.transform.a)),
+                    width=dataset.width,
+                    height=dataset.height,
+                    wgs84_bounds=None
+                    if stac_item.get("bbox") is None
+                    else tuple(float(value) for value in stac_item["bbox"]),
+                )
+            elif signature != reference_signature:
+                raise ValueError(f"{href} grid does not match the first {kind} asset")
+            arrays.append(dataset.read(1))
+    if grid is None:
+        raise ValueError(f"STAC item has no {kind} assets")
+    return np.stack(arrays, axis=0), grid
+
+
+def _ordered_band_assets(
+    stac_item: Mapping[str, Any],
+    kind: str,
+    band_count: int,
+) -> list[Mapping[str, Any]]:
+    assets_by_index: dict[int, Mapping[str, Any]] = {}
+    for asset in stac_item.get("assets", {}).values():
+        if asset.get("brdf:asset_kind") != kind:
+            continue
+        band_index = asset.get("brdf:band_index")
+        if not isinstance(band_index, int) or band_index < 0 or band_index >= band_count:
+            raise ValueError(f"{kind} asset has invalid brdf:band_index {band_index!r}")
+        if band_index in assets_by_index:
+            raise ValueError(f"duplicate {kind} asset for brdf:band_index {band_index}")
+        assets_by_index[band_index] = asset
+    missing = [index for index in range(band_count) if index not in assets_by_index]
+    if missing:
+        raise ValueError(f"STAC item is missing {kind} assets for band indices {missing}")
+    return [assets_by_index[index] for index in range(band_count)]
+
+
+def _asset_href(source: Path, href: str) -> str | Path:
+    if "://" in href:
+        return href
+    return source / href
+
+
+def _dataset_signature(dataset: Any) -> tuple[Any, ...]:
+    transform = dataset.transform
+    return (
+        dataset.width,
+        dataset.height,
+        tuple(
+            float(value)
+            for value in (
+                transform.a,
+                transform.b,
+                transform.c,
+                transform.d,
+                transform.e,
+                transform.f,
+            )
+        ),
+        dataset.crs.to_wkt() if dataset.crs else None,
     )
 
 

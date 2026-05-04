@@ -36,8 +36,10 @@ The output directory contains:
 <cache-root>/<request-hash>/
   stac-item.json
   assets/
-    prior.tif
-    uncertainty.tif
+    prior/
+      01-brdf_iso_red.tif
+    uncertainty/
+      01-brdf_iso_red.tif
 ```
 
 ## Contract
@@ -51,7 +53,7 @@ This package owns:
 - Relative uncertainty propagation or fallback estimation.
 - `uint16` prior encoding with scale factor `10000` and nodata `65535`.
 - `uint8` relative uncertainty encoding in percent from `0` to `200`; values above `200%`, negative values, and non-finite values are stored as `255`.
-- Tiled, DEFLATE-compressed GeoTIFF persistence optimized for remote chunked reads, without overviews.
+- One-band tiled, DEFLATE-compressed GeoTIFF persistence optimized for remote chunked reads, without overviews.
 - STAC Item creation with `projection` and `raster` extension metadata.
 
 Callers own:

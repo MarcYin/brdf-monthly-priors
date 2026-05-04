@@ -76,8 +76,8 @@ The product is written to:
 
 ```text
 .brdf-cache/<request-hash>/stac-item.json
-.brdf-cache/<request-hash>/assets/prior.tif
-.brdf-cache/<request-hash>/assets/uncertainty.tif
+.brdf-cache/<request-hash>/assets/prior/01-iso.tif
+.brdf-cache/<request-hash>/assets/uncertainty/01-iso.tif
 ```
 
 ## Retrieve A Prepared Store
