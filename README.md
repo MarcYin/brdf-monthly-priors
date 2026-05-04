@@ -24,8 +24,7 @@ provider = Provider(
 
 product = provider.build_prior(
     product_id="example-brdf-prior",
-    bounds=(-20015109.354, 10007554.677, -20014609.354, 10007054.677),
-    crs="+proj=sinu +R=6371007.181 +nadgrids=@null +wktext",
+    wgs84_bounds=(-1.0, 51.0, -0.99, 51.01),
     resolution=500.0,
     band_names=("brdf_iso_red",),
 )
@@ -45,6 +44,7 @@ The output directory contains:
 
 This package owns:
 
+- WGS84 AOI bounds conversion into the native BRDF data CRS.
 - Native-grid best-pixel compositing from caller-supplied BRDF observations.
 - BRDF quality and sample-index tie-breaking.
 - Relative uncertainty propagation or fallback estimation.
@@ -60,7 +60,7 @@ Callers own:
 - NASA/Earthdata search policy and temporal filtering.
 - SIAC atmospheric correction, SWIR refine routing, spectral mapping, and `SurfacePrior` construction.
 
-The builder does not reproject internally. MODIS/VIIRS Sinusoidal inputs should be passed through on their native grid and CRS.
+The public AOI input is always WGS84 longitude/latitude bounds: `(west, south, east, north)`. The package converts those bounds to the configured BRDF data CRS, which defaults to MODIS/VIIRS Sinusoidal. The builder still does not reproject source arrays internally; observations must already match the derived native grid.
 
 ## Installation
 
@@ -86,8 +86,7 @@ pytest
 ```bash
 brdf-monthly-priors build \
   --product-id example-brdf-prior \
-  --bounds -20015109.354 10007054.677 -20014609.354 10007554.677 \
-  --crs "+proj=sinu +R=6371007.181 +nadgrids=@null +wktext" \
+  --wgs84-bounds -1.0 51.0 -0.99 51.01 \
   --resolution 500 \
   --band brdf_iso_red \
   --local-observations observations.json \
@@ -115,4 +114,3 @@ brdf-monthly-priors build \
 ## Publishing
 
 The repository includes GitHub Actions workflows for tests, package build checks, PyPI trusted publishing on GitHub releases, and MkDocs Material deployment to GitHub Pages.
-

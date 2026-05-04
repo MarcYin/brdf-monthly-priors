@@ -10,5 +10,7 @@ build/
 .venv*/
 __pycache__/
 *.py[cod]
+* 2.py
+* 2.md
 .brdf-cache/
 site/

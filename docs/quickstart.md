@@ -35,8 +35,8 @@ provider = Provider(ProviderConfig(cache_dir=".brdf-cache", source=source))
 
 product = provider.build_prior(
     product_id="example-prior",
-    bounds=(0, 0, 2, 2),
-    crs="EPSG:4326",
+    wgs84_bounds=(0, 0, 2, 2),
+    brdf_crs="EPSG:4326",
     resolution=1,
     band_names=("iso",),
 )
@@ -58,12 +58,11 @@ Use the same source namespace that built the cache:
 provider = Provider(ProviderConfig(cache_dir=".brdf-cache", source_name="example"))
 product = provider.build_prior(
     product_id="example-prior",
-    bounds=(0, 0, 2, 2),
-    crs="EPSG:4326",
+    wgs84_bounds=(0, 0, 2, 2),
+    brdf_crs="EPSG:4326",
     resolution=1,
     band_names=("iso",),
 )
 ```
 
 If the cache key is absent and no source or explicit observations are configured, the provider raises a cache-miss error.
-

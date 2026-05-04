@@ -93,7 +93,9 @@ class EarthaccessSource:
             ) from exc
 
         earthaccess.login(strategy=self.login_strategy)
-        bbox = _bounds_to_wgs84(grid.bounds, grid.crs)
+        bbox = grid.wgs84_bounds
+        if bbox is None:
+            bbox = _bounds_to_wgs84(grid.bounds, grid.crs)
         fetched = []
         for collection in self.collections:
             collection_dir = self.cache_dir / collection.short_name
@@ -173,4 +175,3 @@ def product_collections(product: str) -> Tuple[EarthdataCollection, ...]:
     if normalized == "mcd19":
         return (EarthdataCollection("MCD19A3", version="061"),)
     raise ValueError("product must be one of: mcd43, vnp43, mcd19")
-

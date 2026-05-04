@@ -23,8 +23,7 @@ provider = Provider(ProviderConfig(cache_dir=".brdf-cache", source=source))
 
 product = provider.build_prior(
     product_id="example-brdf-prior",
-    bounds=(-20015109.354, 10007054.677, -20014609.354, 10007554.677),
-    crs="+proj=sinu +R=6371007.181 +nadgrids=@null +wktext",
+    wgs84_bounds=(-1.0, 51.0, -0.99, 51.01),
     resolution=500.0,
     band_names=("brdf_iso_red",),
 )
@@ -32,3 +31,4 @@ product = provider.build_prior(
 
 The returned `PriorProduct` contains the in-memory composite, output directory, and STAC Item dictionary.
 
+Input AOI bounds are always WGS84 `(west, south, east, north)`. The package converts them to the configured BRDF CRS internally; the default BRDF CRS is MODIS/VIIRS Sinusoidal.

@@ -43,7 +43,6 @@ Important fields:
 - `proj:shape`: raster shape
 - `proj:transform`: affine transform
 - `proj:bbox`: native-projection bounds
-- `bbox` and `geometry`: WGS84 metadata when `pyproj` can derive it
+- `bbox` and `geometry`: caller-supplied WGS84 bounds and geometry when available
 
 The STAC Item is the package-neutral output contract.
-

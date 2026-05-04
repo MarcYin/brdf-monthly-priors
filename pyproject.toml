@@ -102,6 +102,7 @@ addopts = "-ra"
 target-version = "py39"
 line-length = 100
 src = ["src", "tests"]
+extend-exclude = ["* 2.py", "* 2.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4", "SIM"]

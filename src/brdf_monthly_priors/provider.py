@@ -7,7 +7,13 @@ from typing import Any, Mapping, Optional, Sequence, Union
 from brdf_monthly_priors.composite import PriorCompositor
 from brdf_monthly_priors.persistence import CompositeStore, stable_json_hash
 from brdf_monthly_priors.sources.base import ObservationSource
-from brdf_monthly_priors.types import DEFAULT_BANDS, GridSpec, Observation, PriorProduct
+from brdf_monthly_priors.types import (
+    DEFAULT_BANDS,
+    DEFAULT_BRDF_CRS,
+    GridSpec,
+    Observation,
+    PriorProduct,
+)
 
 
 def default_cache_dir() -> Path:
@@ -35,16 +41,20 @@ class Provider:
     def build_prior(
         self,
         *,
-        bounds: Sequence[float],
-        crs: str,
+        wgs84_bounds: Sequence[float],
         resolution: float,
         product_id: str,
+        brdf_crs: str = DEFAULT_BRDF_CRS,
         band_names: Sequence[str] = DEFAULT_BANDS,
         observations: Optional[Sequence[Observation]] = None,
         rebuild: bool = False,
     ) -> PriorProduct:
         band_names = tuple(str(band) for band in band_names)
-        grid = GridSpec.from_bounds(bounds=bounds, crs=crs, resolution=resolution)
+        grid = GridSpec.from_wgs84_bounds(
+            wgs84_bounds=wgs84_bounds,
+            brdf_crs=brdf_crs,
+            resolution=resolution,
+        )
         request = self._request_payload(grid=grid, product_id=product_id, band_names=band_names)
         request_hash = stable_json_hash(request)
         if not rebuild and self.store.has_product(request_hash):
@@ -74,13 +84,17 @@ class Provider:
     def request_hash(
         self,
         *,
-        bounds: Sequence[float],
-        crs: str,
+        wgs84_bounds: Sequence[float],
         resolution: float,
         product_id: str,
+        brdf_crs: str = DEFAULT_BRDF_CRS,
         band_names: Sequence[str] = DEFAULT_BANDS,
     ) -> str:
-        grid = GridSpec.from_bounds(bounds=bounds, crs=crs, resolution=resolution)
+        grid = GridSpec.from_wgs84_bounds(
+            wgs84_bounds=wgs84_bounds,
+            brdf_crs=brdf_crs,
+            resolution=resolution,
+        )
         return stable_json_hash(
             self._request_payload(
                 grid=grid,
@@ -101,8 +115,9 @@ class Provider:
             source_name = "direct-observations" if self.config.source is None else self.config.source.name
         return {
             "product_id": str(product_id),
-            "bounds": list(grid.bounds),
-            "crs": grid.crs,
+            "wgs84_bounds": None if grid.wgs84_bounds is None else list(grid.wgs84_bounds),
+            "native_bounds": list(grid.bounds),
+            "brdf_crs": grid.crs,
             "resolution": grid.resolution,
             "width": grid.width,
             "height": grid.height,
@@ -112,4 +127,3 @@ class Provider:
         }
 
     get_prior = build_prior
-

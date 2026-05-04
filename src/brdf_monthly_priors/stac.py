@@ -99,6 +99,11 @@ def _uncertainty_asset(href: str, band_names: Sequence[str]) -> Dict[str, Any]:
 
 
 def _wgs84_geometry_and_bbox(grid: GridSpec) -> tuple[Optional[Mapping[str, Any]], Optional[list[float]]]:
+    if grid.wgs84_bounds is not None:
+        west, south, east, north = grid.wgs84_bounds
+        bbox = [float(west), float(south), float(east), float(north)]
+        return _bbox_geometry(bbox), bbox
+
     try:
         from pyproj import Transformer
     except ImportError:
@@ -111,7 +116,11 @@ def _wgs84_geometry_and_bbox(grid: GridSpec) -> tuple[Optional[Mapping[str, Any]
         return None, None
 
     bbox = [float(west), float(south), float(east), float(north)]
-    geometry = {
+    return _bbox_geometry(bbox), bbox
+
+
+def _bbox_geometry(bbox: Sequence[float]) -> Mapping[str, Any]:
+    return {
         "type": "Polygon",
         "coordinates": [
             [
@@ -123,5 +132,3 @@ def _wgs84_geometry_and_bbox(grid: GridSpec) -> tuple[Optional[Mapping[str, Any]
             ]
         ],
     }
-    return geometry, bbox
-

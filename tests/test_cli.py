@@ -28,12 +28,12 @@ def test_cli_builds_from_local_manifest(tmp_path, capsys):
             "build",
             "--product-id",
             "cli-prior",
-            "--bounds",
+            "--wgs84-bounds",
             "0",
             "0",
             "2",
             "2",
-            "--crs",
+            "--brdf-crs",
             "EPSG:4326",
             "--resolution",
             "1",
@@ -51,4 +51,3 @@ def test_cli_builds_from_local_manifest(tmp_path, capsys):
     assert "request_hash=" in output
     stac_line = next(line for line in output.splitlines() if line.startswith("stac_item="))
     assert Path(stac_line.split("=", 1)[1]).exists()
-

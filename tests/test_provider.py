@@ -28,8 +28,8 @@ def test_provider_builds_and_cache_only_provider_retrieves(tmp_path):
     provider = Provider(ProviderConfig(cache_dir=tmp_path, source=source))
 
     product = provider.build_prior(
-        bounds=(0, 0, 2, 2),
-        crs="EPSG:4326",
+        wgs84_bounds=(0, 0, 2, 2),
+        brdf_crs="EPSG:4326",
         resolution=1,
         product_id="fixture-prior",
         band_names=("iso",),
@@ -40,8 +40,8 @@ def test_provider_builds_and_cache_only_provider_retrieves(tmp_path):
 
     cache_only = Provider(ProviderConfig(cache_dir=tmp_path, source_name="fixture"))
     loaded = cache_only.build_prior(
-        bounds=(0, 0, 2, 2),
-        crs="EPSG:4326",
+        wgs84_bounds=(0, 0, 2, 2),
+        brdf_crs="EPSG:4326",
         resolution=1,
         product_id="fixture-prior",
         band_names=("iso",),
@@ -56,10 +56,9 @@ def test_provider_cache_miss_without_source_raises(tmp_path):
 
     with pytest.raises(RuntimeError, match="cache miss"):
         provider.build_prior(
-            bounds=(0, 0, 2, 2),
-            crs="EPSG:4326",
+            wgs84_bounds=(0, 0, 2, 2),
+            brdf_crs="EPSG:4326",
             resolution=1,
             product_id="missing",
             band_names=("iso",),
         )
-

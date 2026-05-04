@@ -11,7 +11,7 @@ from brdf_monthly_priors.provider import Provider, ProviderConfig
 from brdf_monthly_priors.sources.earthaccess import EarthaccessSource, product_collections
 from brdf_monthly_priors.sources.local import LocalNpzSource
 from brdf_monthly_priors.sources.rasterio_reader import NativeRasterioStackReader
-from brdf_monthly_priors.types import DEFAULT_BANDS
+from brdf_monthly_priors.types import DEFAULT_BANDS, DEFAULT_BRDF_CRS
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,8 +71,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _add_request_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--product-id", required=True)
-    parser.add_argument("--bounds", nargs=4, type=float, required=True, metavar=("XMIN", "YMIN", "XMAX", "YMAX"))
-    parser.add_argument("--crs", required=True)
+    parser.add_argument(
+        "--wgs84-bounds",
+        nargs=4,
+        type=float,
+        required=True,
+        metavar=("WEST", "SOUTH", "EAST", "NORTH"),
+        help="Input AOI bounds in WGS84 longitude/latitude.",
+    )
+    parser.add_argument(
+        "--brdf-crs",
+        default=DEFAULT_BRDF_CRS,
+        help="Native BRDF data CRS. Defaults to MODIS/VIIRS Sinusoidal.",
+    )
     parser.add_argument("--resolution", type=float, required=True)
     parser.add_argument("--band", action="append", dest="bands", default=None, help="Band name. Repeat to override defaults.")
 
@@ -99,10 +110,10 @@ def _build(args: argparse.Namespace) -> int:
     provider = Provider(config)
     band_names = tuple(args.bands or DEFAULT_BANDS)
     product = provider.build_prior(
-        bounds=args.bounds,
-        crs=args.crs,
+        wgs84_bounds=args.wgs84_bounds,
         resolution=args.resolution,
         product_id=args.product_id,
+        brdf_crs=args.brdf_crs,
         band_names=band_names,
         rebuild=args.rebuild,
     )
@@ -158,14 +169,13 @@ def _parse_band_patterns(values: Sequence[str]) -> dict[str, str]:
 
 def _request_hash(provider: Provider, args: argparse.Namespace) -> str:
     return provider.request_hash(
-        bounds=args.bounds,
-        crs=args.crs,
+        wgs84_bounds=args.wgs84_bounds,
         resolution=args.resolution,
         product_id=args.product_id,
+        brdf_crs=args.brdf_crs,
         band_names=tuple(args.bands or DEFAULT_BANDS),
     )
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

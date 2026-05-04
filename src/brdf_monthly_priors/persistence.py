@@ -113,6 +113,9 @@ def load_product(path: Union[str, Path], request: Optional[Mapping[str, Any]] = 
             resolution=abs(float(prior_dataset.transform.a)),
             width=prior_dataset.width,
             height=prior_dataset.height,
+            wgs84_bounds=None
+            if stac_item.get("bbox") is None
+            else tuple(float(value) for value in stac_item["bbox"]),
         )
         band_names = tuple(prior_dataset.descriptions)
     with rasterio.open(uncertainty_path) as uncertainty_dataset:
@@ -154,4 +157,3 @@ def stac_item_path(path: Union[str, Path], request_hash: Optional[str] = None) -
 
 
 manifest_path = stac_item_path
-

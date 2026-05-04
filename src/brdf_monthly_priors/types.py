@@ -10,6 +10,9 @@ SCHEMA_VERSION = "brdf-monthly-priors/v2"
 STAC_VERSION = "1.0.0"
 PROJECTION_EXTENSION = "https://stac-extensions.github.io/projection/v1.1.0/schema.json"
 RASTER_EXTENSION = "https://stac-extensions.github.io/raster/v1.1.0/schema.json"
+WGS84_CRS = "EPSG:4326"
+MODIS_SINUSOIDAL_CRS = "+proj=sinu +R=6371007.181 +nadgrids=@null +wktext +units=m +no_defs"
+DEFAULT_BRDF_CRS = MODIS_SINUSOIDAL_CRS
 DEFAULT_SCALE_FACTOR = 10000
 DEFAULT_PRIOR_NODATA = 65535
 DEFAULT_UNCERTAINTY_NODATA = 255
@@ -39,6 +42,32 @@ def _tuple_float4(value: Sequence[float]) -> Tuple[float, float, float, float]:
     return xmin, ymin, xmax, ymax
 
 
+def _tuple_wgs84_bounds(value: Sequence[float]) -> Tuple[float, float, float, float]:
+    west, south, east, north = _tuple_float4(value)
+    if not (-180.0 <= west <= 180.0 and -180.0 <= east <= 180.0):
+        raise ValueError("WGS84 longitudes must be within [-180, 180]")
+    if not (-90.0 <= south <= 90.0 and -90.0 <= north <= 90.0):
+        raise ValueError("WGS84 latitudes must be within [-90, 90]")
+    return west, south, east, north
+
+
+def transform_wgs84_bounds(
+    wgs84_bounds: Sequence[float],
+    dst_crs: str,
+) -> Tuple[float, float, float, float]:
+    """Transform WGS84 bounds to a destination CRS."""
+
+    bounds = _tuple_wgs84_bounds(wgs84_bounds)
+    if str(dst_crs).upper() in {"EPSG:4326", "OGC:CRS84", "CRS84"}:
+        return bounds
+    try:
+        from pyproj import Transformer
+    except ImportError as exc:
+        raise ImportError("WGS84-to-BRDF bounds conversion requires pyproj.") from exc
+    transformer = Transformer.from_crs(WGS84_CRS, dst_crs, always_xy=True)
+    return transformer.transform_bounds(*bounds, densify_pts=21)
+
+
 @dataclass(frozen=True)
 class GridSpec:
     """Native processing grid.
@@ -52,6 +81,7 @@ class GridSpec:
     resolution: float
     width: int
     height: int
+    wgs84_bounds: Optional[Tuple[float, float, float, float]] = None
 
     @classmethod
     def from_bounds(
@@ -59,8 +89,12 @@ class GridSpec:
         bounds: Sequence[float],
         crs: str,
         resolution: float,
+        wgs84_bounds: Optional[Sequence[float]] = None,
     ) -> "GridSpec":
         normalized_bounds = _tuple_float4(bounds)
+        normalized_wgs84_bounds = None
+        if wgs84_bounds is not None:
+            normalized_wgs84_bounds = _tuple_wgs84_bounds(wgs84_bounds)
         if resolution <= 0:
             raise ValueError("resolution must be positive")
         xmin, ymin, xmax, ymax = normalized_bounds
@@ -74,6 +108,22 @@ class GridSpec:
             resolution=float(resolution),
             width=width,
             height=height,
+            wgs84_bounds=normalized_wgs84_bounds,
+        )
+
+    @classmethod
+    def from_wgs84_bounds(
+        cls,
+        wgs84_bounds: Sequence[float],
+        brdf_crs: str = DEFAULT_BRDF_CRS,
+        resolution: float = 500.0,
+    ) -> "GridSpec":
+        native_bounds = transform_wgs84_bounds(wgs84_bounds, brdf_crs)
+        return cls.from_bounds(
+            bounds=native_bounds,
+            crs=brdf_crs,
+            resolution=resolution,
+            wgs84_bounds=wgs84_bounds,
         )
 
     @property
@@ -89,6 +139,7 @@ class GridSpec:
         return {
             "bounds": list(self.bounds),
             "crs": self.crs,
+            "wgs84_bounds": None if self.wgs84_bounds is None else list(self.wgs84_bounds),
             "resolution": self.resolution,
             "width": self.width,
             "height": self.height,
@@ -103,6 +154,9 @@ class GridSpec:
             resolution=float(payload["resolution"]),
             width=int(payload["width"]),
             height=int(payload["height"]),
+            wgs84_bounds=None
+            if payload.get("wgs84_bounds") is None
+            else _tuple_wgs84_bounds(payload["wgs84_bounds"]),
         )
 
 
@@ -227,4 +281,3 @@ class PriorProduct:
             "grid": self.grid.to_dict(),
             "stac_item": dict(self.stac_item),
         }
-

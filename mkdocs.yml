@@ -3,6 +3,8 @@ site_description: Native-grid BRDF prior composites persisted as STAC/GeoTIFF pr
 site_url: https://MarcYin.github.io/brdf-monthly-priors/
 repo_url: https://github.com/MarcYin/brdf-monthly-priors
 repo_name: MarcYin/brdf-monthly-priors
+exclude_docs: |
+  * 2.md
 theme:
   name: material
   features:

@@ -20,7 +20,12 @@ def test_store_writes_tiled_deflate_geotiffs_and_stac_item(tmp_path):
         selected_observation=np.zeros((2, 2), dtype="int16"),
         observation_count=np.ones((2, 2), dtype="uint16"),
     )
-    request = {"product_id": "prior-fixture", "bounds": [0, 0, 2, 2], "crs": "EPSG:4326"}
+    request = {
+        "product_id": "prior-fixture",
+        "wgs84_bounds": [0, 0, 2, 2],
+        "native_bounds": [0, 0, 2, 2],
+        "brdf_crs": "EPSG:4326",
+    }
     request_hash = stable_json_hash(request)
 
     store = CompositeStore(tmp_path)
