@@ -45,6 +45,7 @@ The output directory contains:
 This package owns:
 
 - WGS84 AOI bounds conversion into the native BRDF data CRS.
+- Google Earth Engine BRDF product downloading through `edown`.
 - Native-grid best-pixel compositing from caller-supplied BRDF observations.
 - BRDF quality and sample-index tie-breaking.
 - Relative uncertainty propagation or fallback estimation.
@@ -74,12 +75,42 @@ Optional Earthdata search support:
 pip install "brdf-monthly-priors[earthdata]"
 ```
 
+Optional Google Earth Engine download support through `edown`:
+
+```bash
+pip install "brdf-monthly-priors[gee]"
+```
+
 Development install:
 
 ```bash
 python -m pip install -e ".[dev,docs]"
 pytest
 ```
+
+## Google Earth Engine Input
+
+The built-in GEE preset uses `edown` to download `MODIS/061/MCD43A1` native-grid GeoTIFF observations. The caller still supplies explicit temporal ranges; this package does not decide which days, months, or history windows to use.
+
+```python
+from brdf_monthly_priors import Provider, ProviderConfig
+from brdf_monthly_priors.sources import EdownGeeSource
+
+source = EdownGeeSource.for_product(
+    "mcd43a1",
+    temporal_ranges=(("2024-07-01", "2024-07-31"),),
+    output_root=".brdf-gee-cache",
+)
+
+provider = Provider(ProviderConfig(cache_dir=".brdf-cache", source=source))
+product = provider.build_prior(
+    product_id="mcd43a1-prior",
+    wgs84_bounds=(-2.0, 51.0, -1.0, 52.0),
+    resolution=500.0,
+)
+```
+
+`edown` handles Earth Engine authentication using `GEE_SERVICE_ACCOUNT`/`GEE_SERVICE_ACCOUNT_KEY`, existing Earth Engine user credentials, or Google Application Default Credentials.
 
 ## CLI
 
@@ -91,6 +122,19 @@ brdf-monthly-priors build \
   --band brdf_iso_red \
   --local-observations observations.json \
   --cache-dir .brdf-cache
+```
+
+GEE MCD43A1 through `edown`:
+
+```bash
+brdf-monthly-priors build \
+  --product-id mcd43a1-prior \
+  --gee-product mcd43a1 \
+  --temporal-range 2024-07-01 2024-07-31 \
+  --wgs84-bounds -2.0 51.0 -1.0 52.0 \
+  --resolution 500 \
+  --cache-dir .brdf-cache \
+  --edown-output-root .brdf-gee-cache
 ```
 
 `observations.json` points to local native-grid NPZ observations used as input, not as output:

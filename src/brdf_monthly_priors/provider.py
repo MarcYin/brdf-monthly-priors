@@ -50,10 +50,11 @@ class Provider:
         rebuild: bool = False,
     ) -> PriorProduct:
         band_names = tuple(str(band) for band in band_names)
-        grid = GridSpec.from_wgs84_bounds(
+        grid = self._grid_for_request(
             wgs84_bounds=wgs84_bounds,
             brdf_crs=brdf_crs,
             resolution=resolution,
+            band_names=band_names,
         )
         request = self._request_payload(grid=grid, product_id=product_id, band_names=band_names)
         request_hash = stable_json_hash(request)
@@ -90,17 +91,42 @@ class Provider:
         brdf_crs: str = DEFAULT_BRDF_CRS,
         band_names: Sequence[str] = DEFAULT_BANDS,
     ) -> str:
-        grid = GridSpec.from_wgs84_bounds(
+        band_names = tuple(str(band) for band in band_names)
+        grid = self._grid_for_request(
             wgs84_bounds=wgs84_bounds,
             brdf_crs=brdf_crs,
             resolution=resolution,
+            band_names=band_names,
         )
         return stable_json_hash(
             self._request_payload(
                 grid=grid,
                 product_id=product_id,
-                band_names=tuple(str(band) for band in band_names),
+                band_names=band_names,
             )
+        )
+
+    def _grid_for_request(
+        self,
+        *,
+        wgs84_bounds: Sequence[float],
+        brdf_crs: str,
+        resolution: float,
+        band_names: Sequence[str],
+    ) -> GridSpec:
+        if self.config.source is not None:
+            resolver = getattr(self.config.source, "resolve_grid", None)
+            if callable(resolver):
+                return resolver(
+                    wgs84_bounds=wgs84_bounds,
+                    brdf_crs=brdf_crs,
+                    resolution=resolution,
+                    band_names=band_names,
+                )
+        return GridSpec.from_wgs84_bounds(
+            wgs84_bounds=wgs84_bounds,
+            brdf_crs=brdf_crs,
+            resolution=resolution,
         )
 
     def _request_payload(

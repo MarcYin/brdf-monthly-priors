@@ -44,6 +44,9 @@ earthdata = [
   "earthaccess>=0.10",
   "pyproj>=3.6",
 ]
+gee = [
+  "edown>=0.2.1",
+]
 raster = []
 docs = [
   "mkdocs>=1.6",
@@ -58,6 +61,7 @@ dev = [
   "twine>=5.0",
 ]
 all = [
+  "edown>=0.2.1",
   "earthaccess>=0.10",
   "mkdocs>=1.6",
   "mkdocs-material>=9.5",

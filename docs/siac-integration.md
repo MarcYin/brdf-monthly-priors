@@ -20,6 +20,7 @@ Recommended adapter responsibilities:
 - Keep observations on their native MODIS/VIIRS projection and grid.
 - Pass WGS84 bounds, native BRDF CRS, resolution, product id, and band names to `Provider.build_prior`.
 - Let this package convert WGS84 bounds to native BRDF grid bounds.
+- For Google Earth Engine sources, configure `EdownGeeSource` with SIAC-selected temporal ranges; `edown` downloads the source-native GeoTIFFs and the provider composites those arrays directly.
 - Validate `brdf:schema_version` on the returned STAC Item.
 - Read `prior.tif` as `uint16` and apply scale `0.0001`.
 - Read `uncertainty.tif` as relative percent uncertainty; treat `255` as suspicious/missing.

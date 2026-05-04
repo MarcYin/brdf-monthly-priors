@@ -9,6 +9,7 @@ from brdf_monthly_priors import __version__
 from brdf_monthly_priors.persistence import stac_item_path
 from brdf_monthly_priors.provider import Provider, ProviderConfig
 from brdf_monthly_priors.sources.earthaccess import EarthaccessSource, product_collections
+from brdf_monthly_priors.sources.gee import EdownGeeSource
 from brdf_monthly_priors.sources.local import LocalNpzSource
 from brdf_monthly_priors.sources.rasterio_reader import NativeRasterioStackReader
 from brdf_monthly_priors.types import DEFAULT_BANDS, DEFAULT_BRDF_CRS
@@ -38,12 +39,47 @@ def build_parser() -> argparse.ArgumentParser:
         help="Earthaccess product preset to fetch on cache miss.",
     )
     build.add_argument(
+        "--gee-product",
+        choices=("mcd43a1",),
+        default=None,
+        help="Google Earth Engine product preset fetched through edown.",
+    )
+    build.add_argument(
+        "--gee-collection-id",
+        default=None,
+        help="Generic Earth Engine ImageCollection ID fetched through edown.",
+    )
+    build.add_argument(
         "--temporal-range",
         action="append",
         nargs=2,
         metavar=("START", "END"),
         default=[],
-        help="Explicit Earthaccess temporal range. Repeat as needed. Planning remains caller-owned.",
+        help="Explicit source temporal range. Repeat as needed. Planning remains caller-owned.",
+    )
+    build.add_argument(
+        "--gee-band",
+        action="append",
+        default=[],
+        metavar="BAND=GEE_BAND",
+        help="Map output band name to an Earth Engine band for --gee-collection-id. Repeat as needed.",
+    )
+    build.add_argument(
+        "--gee-quality-band",
+        action="append",
+        default=[],
+        metavar="BAND=GEE_QA_BAND",
+        help="Map output band name to an Earth Engine QA band for --gee-collection-id. Repeat as needed.",
+    )
+    build.add_argument(
+        "--edown-output-root",
+        default=None,
+        help="edown download/cache root for GEE GeoTIFFs.",
+    )
+    build.add_argument(
+        "--edown-overwrite",
+        action="store_true",
+        help="Ask edown to replace existing downloaded GeoTIFFs.",
     )
     build.add_argument(
         "--band-pattern",
@@ -130,8 +166,57 @@ def _build(args: argparse.Namespace) -> int:
 
 def _provider_config(args: argparse.Namespace) -> ProviderConfig:
     source = None
+    source_count = sum(
+        bool(value)
+        for value in (
+            getattr(args, "local_observations", None),
+            getattr(args, "product", None),
+            getattr(args, "gee_product", None),
+            getattr(args, "gee_collection_id", None),
+        )
+    )
+    if source_count > 1:
+        raise SystemExit(
+            "choose only one input source: --local-observations, --product, "
+            "--gee-product, or --gee-collection-id"
+        )
     if getattr(args, "local_observations", None):
         source = LocalNpzSource(args.local_observations)
+    elif getattr(args, "gee_product", None) or getattr(args, "gee_collection_id", None):
+        if not args.temporal_range:
+            raise SystemExit("--gee-product and --gee-collection-id require --temporal-range START END.")
+        output_root = (
+            Path(args.edown_output_root)
+            if args.edown_output_root
+            else Path(args.cache_dir or ".brdf-gee-cache") / "gee"
+        )
+        if args.gee_product:
+            source = EdownGeeSource.for_product(
+                args.gee_product,
+                temporal_ranges=tuple(tuple(value) for value in args.temporal_range),
+                output_root=output_root,
+                overwrite=args.edown_overwrite,
+            )
+        else:
+            band_map = _parse_band_patterns(args.gee_band)
+            quality_band_map = _parse_band_patterns(args.gee_quality_band)
+            band_names = tuple(args.bands or DEFAULT_BANDS)
+            if not band_map or not quality_band_map:
+                raise SystemExit(
+                    "--gee-collection-id builds require --gee-band BAND=GEE_BAND "
+                    "and --gee-quality-band BAND=GEE_QA_BAND for every requested band."
+                )
+            missing = [band for band in band_names if band not in band_map or band not in quality_band_map]
+            if missing:
+                raise SystemExit(f"missing GEE band or quality mapping for bands: {missing}")
+            source = EdownGeeSource(
+                collection_id=args.gee_collection_id,
+                temporal_ranges=tuple(tuple(value) for value in args.temporal_range),
+                output_root=output_root,
+                band_map=band_map,
+                quality_band_map=quality_band_map,
+                overwrite=args.edown_overwrite,
+            )
     elif getattr(args, "product", None):
         band_patterns = _parse_band_patterns(args.band_pattern)
         if not band_patterns or not args.quality_pattern or not args.temporal_range:

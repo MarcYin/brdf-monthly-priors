@@ -12,3 +12,6 @@
 
 ::: brdf_monthly_priors.encoding.EncodingConfig
 
+::: brdf_monthly_priors.sources.gee.EdownGeeSource
+
+::: brdf_monthly_priors.sources.gee.GeeProductPreset

@@ -12,6 +12,36 @@ Optional NASA Earthdata search support:
 pip install "brdf-monthly-priors[earthdata]"
 ```
 
+Optional Google Earth Engine support through `edown`:
+
+```bash
+pip install "brdf-monthly-priors[gee]"
+```
+
+## Build From Google Earth Engine
+
+`EdownGeeSource` downloads native-grid GeoTIFF observations with `edown`, then passes those observations to the same prior compositor. The built-in `mcd43a1` preset maps the default BRDF kernel bands to `MODIS/061/MCD43A1`.
+
+```python
+from brdf_monthly_priors import Provider, ProviderConfig
+from brdf_monthly_priors.sources import EdownGeeSource
+
+source = EdownGeeSource.for_product(
+    "mcd43a1",
+    temporal_ranges=(("2024-07-01", "2024-07-31"),),
+    output_root=".brdf-gee-cache",
+)
+
+provider = Provider(ProviderConfig(cache_dir=".brdf-cache", source=source))
+product = provider.build_prior(
+    product_id="mcd43a1-prior",
+    wgs84_bounds=(-2.0, 51.0, -1.0, 52.0),
+    resolution=500,
+)
+```
+
+The temporal range is explicit caller policy. `edown` may derive a source-native grid from the downloaded GeoTIFFs; no raster reprojection is done by this package.
+
 ## Build From A Custom Source
 
 Any source that implements `ObservationSource` can feed the provider. Observations must already match the requested grid; the builder does not reproject.
