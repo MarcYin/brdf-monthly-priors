@@ -82,10 +82,10 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/MarcYin/brdf-monthly-priors"
-Documentation = "https://MarcYin.github.io/brdf-monthly-priors/"
-Repository = "https://github.com/MarcYin/brdf-monthly-priors"
-Issues = "https://github.com/MarcYin/brdf-monthly-priors/issues"
+Homepage = "https://github.com/MarcYin/surface_prior"
+Documentation = "https://MarcYin.github.io/surface_prior/"
+Repository = "https://github.com/MarcYin/surface_prior"
+Issues = "https://github.com/MarcYin/surface_prior/issues"
 
 [project.scripts]
 brdf-monthly-priors = "brdf_monthly_priors.cli:main"
