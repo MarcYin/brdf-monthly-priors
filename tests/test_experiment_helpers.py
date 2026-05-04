@@ -3,6 +3,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
+import numpy as np
+
 
 def load_experiment_module():
     path = Path(__file__).parents[1] / "examples" / "gee_vs_official_mcd43a1.py"
@@ -38,3 +40,25 @@ def test_filter_results_by_native_date_excludes_overlapping_windows():
     )
 
     assert filtered == [results[1]]
+
+
+def test_band_comparison_metrics_reports_scatter_statistics():
+    gee = np.array([[1.0, 2.0], [np.nan, 4.0]], dtype="float32")
+    official = np.array([[1.0, 2.1], [3.0, np.nan]], dtype="float32")
+    gee_encoded = np.array([[10, 20], [65535, 40]], dtype="uint16")
+    official_encoded = np.array([[10, 21], [30, 65535]], dtype="uint16")
+
+    metrics = experiment.band_comparison_metrics(
+        gee=gee,
+        official=official,
+        gee_encoded=gee_encoded,
+        official_encoded=official_encoded,
+    )
+
+    assert metrics["joint_valid_pixels"] == 2
+    assert metrics["gee_only_valid_pixels"] == 1
+    assert metrics["official_only_valid_pixels"] == 1
+    assert metrics["encoded_prior_equal_pixels"] == 1
+    assert metrics["encoded_prior_equal_fraction"] == 0.25
+    assert metrics["rmse_float_difference"] > 0
+    assert metrics["r2"] is not None

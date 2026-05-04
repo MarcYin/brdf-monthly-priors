@@ -92,6 +92,17 @@ def parse_args() -> argparse.Namespace:
         default=-1,
         help="Limit official granules for smoke tests. -1 means no limit.",
     )
+    parser.add_argument(
+        "--skip-figures",
+        action="store_true",
+        help="Do not write PNG/PDF/SVG comparison figures.",
+    )
+    parser.add_argument(
+        "--figure-format",
+        choices=("png", "pdf", "svg"),
+        default="png",
+        help="Figure format written under <output-root>/figures.",
+    )
     return parser.parse_args()
 
 
@@ -153,6 +164,15 @@ def main() -> int:
         official_granule_count=len(official_paths),
         official_observation_count=len(official_observations),
     )
+    if not args.skip_figures:
+        figures = write_figures(
+            gee_product=gee_product,
+            official_product=official_product,
+            summary=summary,
+            output_dir=output_root / "figures",
+            file_format=args.figure_format,
+        )
+        summary["figures"] = {name: str(path) for name, path in figures.items()}
     summary_path = output_root / "comparison-summary.json"
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(summary, indent=2, sort_keys=True))
@@ -333,21 +353,12 @@ def compare_products(*, gee_product: Any, official_product: Any, **counts: int) 
 
     band_metrics = {}
     for index, band in enumerate(gee_product.composite.band_names):
-        mask = np.isfinite(gee_data[index]) & np.isfinite(official_data[index])
-        diff = gee_data[index] - official_data[index]
-        if np.any(mask):
-            max_abs = float(np.nanmax(np.abs(diff[mask])))
-            mean_abs = float(np.nanmean(np.abs(diff[mask])))
-        else:
-            max_abs = None
-            mean_abs = None
-        band_metrics[band] = {
-            "valid_pixels": int(np.count_nonzero(mask)),
-            "max_abs_float_difference": max_abs,
-            "mean_abs_float_difference": mean_abs,
-            "encoded_prior_equal_pixels": int(np.count_nonzero(prior_a[index] == prior_b[index])),
-            "total_pixels": int(prior_a[index].size),
-        }
+        band_metrics[band] = band_comparison_metrics(
+            gee=gee_data[index],
+            official=official_data[index],
+            gee_encoded=prior_a[index],
+            official_encoded=prior_b[index],
+        )
 
     return {
         "schema_version": 1,
@@ -370,11 +381,264 @@ def compare_products(*, gee_product: Any, official_product: Any, **counts: int) 
     }
 
 
+def band_comparison_metrics(
+    *,
+    gee: np.ndarray,
+    official: np.ndarray,
+    gee_encoded: np.ndarray,
+    official_encoded: np.ndarray,
+) -> dict[str, Any]:
+    gee = np.asarray(gee)
+    official = np.asarray(official)
+    finite_gee = np.isfinite(gee)
+    finite_official = np.isfinite(official)
+    joint = finite_gee & finite_official
+    total_pixels = int(gee.size)
+    encoded_equal_pixels = int(np.count_nonzero(gee_encoded == official_encoded))
+    metrics: dict[str, Any] = {
+        "total_pixels": total_pixels,
+        "valid_pixels": int(np.count_nonzero(joint)),
+        "joint_valid_pixels": int(np.count_nonzero(joint)),
+        "gee_valid_pixels": int(np.count_nonzero(finite_gee)),
+        "official_valid_pixels": int(np.count_nonzero(finite_official)),
+        "gee_only_valid_pixels": int(np.count_nonzero(finite_gee & ~finite_official)),
+        "official_only_valid_pixels": int(np.count_nonzero(~finite_gee & finite_official)),
+        "both_nodata_pixels": int(np.count_nonzero(~finite_gee & ~finite_official)),
+        "encoded_prior_equal_pixels": encoded_equal_pixels,
+        "encoded_prior_unequal_pixels": total_pixels - encoded_equal_pixels,
+        "encoded_prior_equal_fraction": encoded_equal_pixels / total_pixels if total_pixels else None,
+        "max_abs_float_difference": None,
+        "mean_abs_float_difference": None,
+        "median_abs_float_difference": None,
+        "p95_abs_float_difference": None,
+        "rmse_float_difference": None,
+        "mean_signed_float_difference": None,
+        "pearson_r": None,
+        "r2": None,
+        "linear_fit_slope": None,
+        "linear_fit_intercept": None,
+    }
+    if not np.any(joint):
+        return metrics
+
+    x = official[joint].astype("float64", copy=False)
+    y = gee[joint].astype("float64", copy=False)
+    diff = y - x
+    abs_diff = np.abs(diff)
+    metrics.update(
+        {
+            "max_abs_float_difference": float(np.max(abs_diff)),
+            "mean_abs_float_difference": float(np.mean(abs_diff)),
+            "median_abs_float_difference": float(np.median(abs_diff)),
+            "p95_abs_float_difference": float(np.percentile(abs_diff, 95)),
+            "rmse_float_difference": float(np.sqrt(np.mean(diff**2))),
+            "mean_signed_float_difference": float(np.mean(diff)),
+        }
+    )
+    if x.size > 1 and np.std(x) > 0 and np.std(y) > 0:
+        pearson = float(np.corrcoef(x, y)[0, 1])
+        slope, intercept = np.polyfit(x, y, 1)
+        metrics.update(
+            {
+                "pearson_r": pearson,
+                "r2": pearson**2,
+                "linear_fit_slope": float(slope),
+                "linear_fit_intercept": float(intercept),
+            }
+        )
+    return metrics
+
+
 def max_abs_difference(a: np.ndarray, b: np.ndarray) -> Optional[float]:
     mask = np.isfinite(a) & np.isfinite(b)
     if not np.any(mask):
         return None
     return float(np.nanmax(np.abs(a[mask] - b[mask])))
+
+
+def write_figures(
+    *,
+    gee_product: Any,
+    official_product: Any,
+    summary: Mapping[str, Any],
+    output_dir: Path,
+    file_format: str,
+) -> dict[str, Path]:
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError as exc:
+        raise ImportError(
+            "Figure generation requires matplotlib. Install the experiment extra: "
+            "pip install 'brdf-monthly-priors[experiments]'"
+        ) from exc
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    paths = {
+        "scatter_by_band": output_dir / f"scatter-by-band.{file_format}",
+        "difference_by_band": output_dir / f"difference-by-band.{file_format}",
+        "metrics_by_band": output_dir / f"metrics-by-band.{file_format}",
+    }
+    plot_scatter_by_band(
+        plt=plt,
+        gee_product=gee_product,
+        official_product=official_product,
+        summary=summary,
+        path=paths["scatter_by_band"],
+    )
+    plot_difference_by_band(
+        plt=plt,
+        gee_product=gee_product,
+        official_product=official_product,
+        path=paths["difference_by_band"],
+    )
+    plot_metrics_by_band(plt=plt, summary=summary, path=paths["metrics_by_band"])
+    return paths
+
+
+def plot_scatter_by_band(
+    *,
+    plt: Any,
+    gee_product: Any,
+    official_product: Any,
+    summary: Mapping[str, Any],
+    path: Path,
+) -> None:
+    band_names = tuple(gee_product.composite.band_names)
+    rows, cols = grid_layout(len(band_names))
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 4.2, rows * 3.8), squeeze=False)
+    for axis in axes.ravel()[len(band_names) :]:
+        axis.axis("off")
+
+    for index, band in enumerate(band_names):
+        axis = axes.ravel()[index]
+        official = official_product.composite.data[index]
+        gee = gee_product.composite.data[index]
+        mask = np.isfinite(official) & np.isfinite(gee)
+        metrics = summary["bands"][band]
+        if np.any(mask):
+            x = official[mask]
+            y = gee[mask]
+            axis.scatter(x, y, s=18, alpha=0.78, color="#1f77b4", edgecolors="none")
+            lower = float(min(np.min(x), np.min(y)))
+            upper = float(max(np.max(x), np.max(y)))
+            pad = max(abs(lower) * 0.05, 0.001) if lower == upper else (upper - lower) * 0.08
+            lower -= pad
+            upper += pad
+            axis.plot([lower, upper], [lower, upper], color="#333333", linewidth=1.0)
+            axis.set_xlim(lower, upper)
+            axis.set_ylim(lower, upper)
+        axis.set_title(band)
+        axis.set_xlabel("Official LP DAAC")
+        axis.set_ylabel("GEE / edown")
+        axis.grid(True, linewidth=0.4, alpha=0.4)
+        axis.text(
+            0.04,
+            0.96,
+            "\n".join(
+                [
+                    f"n={metrics['joint_valid_pixels']}",
+                    f"RMSE={format_float(metrics['rmse_float_difference'])}",
+                    f"R2={format_float(metrics['r2'])}",
+                ]
+            ),
+            transform=axis.transAxes,
+            va="top",
+            ha="left",
+            fontsize=8,
+            bbox={
+                "boxstyle": "round,pad=0.25",
+                "facecolor": "white",
+                "alpha": 0.85,
+                "edgecolor": "#cccccc",
+            },
+        )
+    fig.suptitle("GEE / edown vs official LP DAAC BRDF prior values by band", fontsize=14)
+    fig.tight_layout()
+    fig.savefig(path, dpi=180)
+    plt.close(fig)
+
+
+def plot_difference_by_band(
+    *,
+    plt: Any,
+    gee_product: Any,
+    official_product: Any,
+    path: Path,
+) -> None:
+    band_names = tuple(gee_product.composite.band_names)
+    rows, cols = grid_layout(len(band_names))
+    differences = []
+    for index in range(len(band_names)):
+        diff = gee_product.composite.data[index] - official_product.composite.data[index]
+        differences.append(diff)
+    finite_abs = [np.abs(diff[np.isfinite(diff)]) for diff in differences if np.any(np.isfinite(diff))]
+    global_max = max((float(np.max(values)) for values in finite_abs if values.size), default=1.0)
+    global_max = max(global_max, 1e-8)
+
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 4.0, rows * 3.5), squeeze=False)
+    image = None
+    for axis in axes.ravel()[len(band_names) :]:
+        axis.axis("off")
+    for index, band in enumerate(band_names):
+        axis = axes.ravel()[index]
+        image = axis.imshow(differences[index], cmap="coolwarm", vmin=-global_max, vmax=global_max)
+        axis.set_title(band)
+        axis.set_xticks([])
+        axis.set_yticks([])
+    if image is not None:
+        fig.colorbar(image, ax=axes.ravel().tolist(), shrink=0.82, label="GEE - official")
+    fig.suptitle("Spatial difference maps by band", fontsize=14)
+    fig.savefig(path, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_metrics_by_band(*, plt: Any, summary: Mapping[str, Any], path: Path) -> None:
+    bands = tuple(summary["bands"].keys())
+    rmse = [value_or_zero(summary["bands"][band]["rmse_float_difference"]) for band in bands]
+    max_abs = [value_or_zero(summary["bands"][band]["max_abs_float_difference"]) for band in bands]
+    equal_fraction = [value_or_zero(summary["bands"][band]["encoded_prior_equal_fraction"]) for band in bands]
+    positions = np.arange(len(bands))
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, max(4.5, len(bands) * 0.42)), sharey=True)
+    axes[0].barh(positions, rmse, color="#4c78a8")
+    axes[0].set_title("RMSE")
+    axes[0].set_xlabel("BRDF coefficient")
+    axes[1].barh(positions, max_abs, color="#f58518")
+    axes[1].set_title("Max abs diff")
+    axes[1].set_xlabel("BRDF coefficient")
+    axes[2].barh(positions, equal_fraction, color="#54a24b")
+    axes[2].set_title("Encoded equality")
+    axes[2].set_xlabel("fraction")
+    axes[2].set_xlim(0, 1.02)
+    axes[0].set_yticks(positions)
+    axes[0].set_yticklabels(bands)
+    for axis in axes:
+        axis.grid(True, axis="x", linewidth=0.4, alpha=0.4)
+    fig.suptitle("Band-by-band comparison metrics", fontsize=14)
+    fig.tight_layout()
+    fig.savefig(path, dpi=180)
+    plt.close(fig)
+
+
+def grid_layout(count: int, max_cols: int = 3) -> tuple[int, int]:
+    cols = min(max_cols, max(1, count))
+    rows = int(np.ceil(count / cols))
+    return rows, cols
+
+
+def format_float(value: Any) -> str:
+    if value is None:
+        return "n/a"
+    return f"{float(value):.3g}"
+
+
+def value_or_zero(value: Any) -> float:
+    if value is None:
+        return 0.0
+    return float(value)
 
 
 def unique(values: Sequence[str]) -> tuple[str, ...]:

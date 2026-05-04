@@ -68,6 +68,10 @@ The experiment writes:
 ```text
 runs/gee-vs-official-mcd43a1/
   comparison-summary.json
+  figures/
+    scatter-by-band.png
+    difference-by-band.png
+    metrics-by-band.png
   gee-edown-downloads/
   official-earthdata-downloads/
   gee-prior/<request-hash>/
@@ -87,13 +91,42 @@ The comparison summary reports:
 - Whether encoded `prior.tif` arrays are byte-for-byte equal.
 - Whether encoded `uncertainty.tif` arrays are byte-for-byte equal.
 - Per-band valid pixel count, maximum absolute float difference, mean absolute float difference, and encoded equal pixel count.
+- Per-band scatter statistics: RMSE, signed bias, median absolute difference, 95th percentile absolute difference, Pearson `r`, `R2`, and linear fit slope/intercept.
+
+### Figures
+
+The script writes figures under `figures/` by default. Use `--skip-figures`
+when running in a non-plotting environment, or `--figure-format pdf` / `svg`
+when vector output is preferred.
+
+#### Band-by-band scatter
+
+Each subplot compares official LP DAAC values on the x-axis with GEE/`edown`
+values on the y-axis for one BRDF kernel band. The black line is the one-to-one
+line; points on that line indicate matching source values before encoded
+GeoTIFF persistence.
+
+![Band-by-band scatter plot](assets/experiments/gee-vs-official-mcd43a1/scatter-by-band.png)
+
+#### Spatial differences
+
+The difference map shows `GEE - official` for each band on the native
+Sinusoidal grid. For this AOI the differences are only floating-point noise.
+
+![Band-by-band spatial difference maps](assets/experiments/gee-vs-official-mcd43a1/difference-by-band.png)
+
+#### Metric bars
+
+The metric plot summarizes RMSE, maximum absolute difference, and encoded
+equality fraction by band.
+
+![Band-by-band metric bars](assets/experiments/gee-vs-official-mcd43a1/metrics-by-band.png)
 
 ### Observed smoke result
 
-The smoke command above was run against `MODIS/061/MCD43A1/2024_07_01` and
-the matching official `MCD43A1.A2024183` granule for the London AOI. It
-produced a `6 x 12` native Sinusoidal grid at `463.3127165279165 m`
-resolution.
+The all-band smoke command above was run against `MODIS/061/MCD43A1/2024_07_01`
+and the matching official `MCD43A1.A2024183` granule for the London AOI. It
+produced a `6 x 12` native Sinusoidal grid at `463.3127165279165 m` resolution.
 
 | Metric | Result |
 | --- | --- |
@@ -101,13 +134,27 @@ resolution.
 | Official observations overlapping the GEE grid | `1` |
 | Encoded `prior.tif` arrays equal | `true` |
 | Encoded `uncertainty.tif` arrays equal | `true` |
-| Valid pixels for `brdf_iso_red` | `63 / 72` |
-| Maximum absolute float prior difference | `1.49e-08` |
+| Valid pixels per band | `63 / 72` |
+| Maximum absolute float prior difference | `2.98e-08` |
 | Maximum absolute float uncertainty difference | `0.0` |
 
 The small non-zero float difference is below the `uint16` prior encoding
 precision and rounds to the same stored values. The encoded arrays are the
 contract that downstream users consume.
+
+### Band Metrics
+
+| Band | Valid pixels | Encoded equal | RMSE | Max abs diff | R2 | Slope |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `brdf_iso_red` | 63 / 72 | 72 / 72 | 6.16e-09 | 1.49e-08 | 1.0 | 1.000000008 |
+| `brdf_vol_red` | 63 / 72 | 72 / 72 | 6.69e-09 | 1.49e-08 | 1.0 | 0.999999970 |
+| `brdf_geo_red` | 63 / 72 | 72 / 72 | 1.54e-09 | 3.73e-09 | 1.0 | 0.999999956 |
+| `brdf_iso_nir` | 63 / 72 | 72 / 72 | 1.56e-08 | 2.98e-08 | 1.0 | 0.999999923 |
+| `brdf_vol_nir` | 63 / 72 | 72 / 72 | 1.49e-08 | 2.98e-08 | 1.0 | 0.999999945 |
+| `brdf_geo_nir` | 63 / 72 | 72 / 72 | 2.89e-09 | 7.45e-09 | 1.0 | 0.999999965 |
+| `brdf_iso_swir1` | 63 / 72 | 72 / 72 | 1.29e-08 | 2.98e-08 | 1.0 | 0.999999939 |
+| `brdf_vol_swir1` | 63 / 72 | 72 / 72 | 8.49e-09 | 1.49e-08 | 1.0 | 0.999999983 |
+| `brdf_geo_swir1` | 63 / 72 | 72 / 72 | 2.48e-09 | 7.45e-09 | 1.0 | 0.999999943 |
 
 ### Interpretation
 

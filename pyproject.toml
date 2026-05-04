@@ -50,6 +50,7 @@ gee = [
 experiments = [
   "earthaccess>=0.10",
   "edown>=0.2.1",
+  "matplotlib>=3.7",
   "pyhdf>=0.11.6",
 ]
 raster = []
@@ -68,6 +69,7 @@ dev = [
 all = [
   "edown>=0.2.1",
   "earthaccess>=0.10",
+  "matplotlib>=3.7",
   "pyhdf>=0.11.6",
   "mkdocs>=1.6",
   "mkdocs-material>=9.5",
