@@ -48,6 +48,7 @@ class Provider:
         native_crs: str = DEFAULT_NATIVE_CRS,
         brdf_crs: Optional[str] = None,
         band_names: Sequence[str] = DEFAULT_BANDS,
+        composite_period: Optional[str] = None,
         observations: Optional[Sequence[Observation]] = None,
         rebuild: bool = False,
     ) -> PriorProduct:
@@ -59,7 +60,12 @@ class Provider:
             resolution=resolution,
             band_names=band_names,
         )
-        request = self._request_payload(grid=grid, product_id=product_id, band_names=band_names)
+        request = self._request_payload(
+            grid=grid,
+            product_id=product_id,
+            band_names=band_names,
+            composite_period=composite_period,
+        )
         request_hash = stable_json_hash(request)
         if not rebuild and self.store.has_product(request_hash):
             return self.store.load(request_hash, request={**request, "request_hash": request_hash})
@@ -94,6 +100,7 @@ class Provider:
         native_crs: str = DEFAULT_NATIVE_CRS,
         brdf_crs: Optional[str] = None,
         band_names: Sequence[str] = DEFAULT_BANDS,
+        composite_period: Optional[str] = None,
     ) -> str:
         crs = native_crs if brdf_crs is None else brdf_crs
         band_names = tuple(str(band) for band in band_names)
@@ -108,6 +115,7 @@ class Provider:
                 grid=grid,
                 product_id=product_id,
                 band_names=band_names,
+                composite_period=composite_period,
             )
         )
 
@@ -141,11 +149,12 @@ class Provider:
         grid: GridSpec,
         product_id: str,
         band_names: Sequence[str],
+        composite_period: Optional[str],
     ) -> dict[str, Any]:
         source_name = self.config.source_name
         if source_name is None:
             source_name = "direct-observations" if self.config.source is None else self.config.source.name
-        return {
+        payload: dict[str, Any] = {
             "product_id": str(product_id),
             "wgs84_bounds": None if grid.wgs84_bounds is None else list(grid.wgs84_bounds),
             "native_bounds": list(grid.bounds),
@@ -157,6 +166,9 @@ class Provider:
             "source": source_name,
             "provider_metadata": dict(self.config.metadata),
         }
+        if composite_period is not None:
+            payload["composite_period"] = str(composite_period)
+        return payload
 
     get_prior = build_prior
 

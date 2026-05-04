@@ -39,6 +39,8 @@ def test_cli_builds_from_local_manifest(tmp_path, capsys):
             "1",
             "--band",
             "iso",
+            "--composite-month",
+            "2024-07",
             "--cache-dir",
             str(cache_dir),
             "--local-observations",

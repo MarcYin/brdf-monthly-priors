@@ -75,12 +75,12 @@ runs/gee-vs-official-mcd43a1/
   official-earthdata-downloads/
   gee-prior/<request-hash>/
     stac-item.json
-    assets/prior/<index>-<band>.tif
-    assets/uncertainty/<index>-<band>.tif
+    assets/prior/<composite-period>/<band>.tif
+    assets/uncertainty/<composite-period>/<band>.tif
   official-prior/<request-hash>/
     stac-item.json
-    assets/prior/<index>-<band>.tif
-    assets/uncertainty/<index>-<band>.tif
+    assets/prior/<composite-period>/<band>.tif
+    assets/uncertainty/<composite-period>/<band>.tif
 ```
 
 The comparison summary reports:
@@ -179,4 +179,7 @@ Differences can still be legitimate:
 - AOIs crossing MODIS tile boundaries can produce different chunk windows unless both paths are forced to the same source-native grid.
 - If only a subset of official granules is downloaded for a smoke run, the compositor is not comparing the full monthly prior.
 
-The experiment intentionally keeps month selection outside the package. The date window supplied to the script is the caller policy; the package only downloads observations, composites best pixels, and persists the prior.
+The experiment intentionally keeps month selection outside the package. The date
+window supplied to the script is the caller policy; the package only downloads
+observations, composites best pixels, and persists the prior. The script passes
+a `composite_period` label so persisted assets include the month in their paths.

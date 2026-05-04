@@ -38,6 +38,7 @@ product = provider.build_prior(
     product_id="mcd43a1-prior",
     wgs84_bounds=(-2.0, 51.0, -1.0, 52.0),
     resolution=500,
+    composite_period="2024-07",
 )
 ```
 
@@ -70,6 +71,7 @@ product = provider.build_prior(
     native_crs="EPSG:4326",
     resolution=1,
     band_names=("iso",),
+    composite_period="2024-07",
 )
 ```
 
@@ -77,9 +79,12 @@ The product is written to:
 
 ```text
 .surface-cache/<request-hash>/stac-item.json
-.surface-cache/<request-hash>/assets/prior/01-iso.tif
-.surface-cache/<request-hash>/assets/uncertainty/01-iso.tif
+.surface-cache/<request-hash>/assets/prior/2024-07/iso.tif
+.surface-cache/<request-hash>/assets/uncertainty/2024-07/iso.tif
 ```
+
+`composite_period` is only a label and path segment. The caller still decides
+which observations belong in that monthly prior.
 
 ## Retrieve A Prepared Store
 
@@ -93,6 +98,7 @@ product = provider.build_prior(
     native_crs="EPSG:4326",
     resolution=1,
     band_names=("iso",),
+    composite_period="2024-07",
 )
 ```
 

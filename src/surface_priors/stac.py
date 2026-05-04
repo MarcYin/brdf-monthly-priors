@@ -21,35 +21,42 @@ def build_stac_item(
     prior_hrefs: Sequence[str],
     uncertainty_hrefs: Sequence[str],
     created_at: Optional[str] = None,
+    composite_period: Optional[str] = None,
 ) -> Dict[str, Any]:
     if len(prior_hrefs) != len(composite.band_names):
         raise ValueError("prior_hrefs length must match composite band count")
     if len(uncertainty_hrefs) != len(composite.band_names):
         raise ValueError("uncertainty_hrefs length must match composite band count")
     grid = composite.grid
+    if composite_period is None:
+        composite_period = composite.attrs.get("composite_period")
     geometry, bbox = _wgs84_geometry_and_bbox(grid)
+    properties: Dict[str, Any] = {
+        "datetime": None,
+        "created": created_at or utc_now_iso(),
+        "surface:request_hash": request_hash,
+        "surface:schema_version": SCHEMA_VERSION,
+        "surface:prior_type": composite.attrs.get("prior_type", "brdf"),
+        "surface:asset_layout": "single-band-geotiff-per-band",
+        "surface:band_names": list(composite.band_names),
+        "surface:compositor": composite.attrs.get("compositor", "best_pixel_v2"),
+        "surface:source_count": len(composite.source_items),
+    }
+    if composite_period is not None:
+        properties["surface:composite_period"] = str(composite_period)
     item: Dict[str, Any] = {
         "type": "Feature",
         "stac_version": STAC_VERSION,
         "stac_extensions": [PROJECTION_EXTENSION, RASTER_EXTENSION],
         "id": composite.product_id,
         "geometry": geometry,
-        "properties": {
-            "datetime": None,
-            "created": created_at or utc_now_iso(),
-            "surface:request_hash": request_hash,
-            "surface:schema_version": SCHEMA_VERSION,
-            "surface:prior_type": composite.attrs.get("prior_type", "brdf"),
-            "surface:asset_layout": "single-band-geotiff-per-band",
-            "surface:band_names": list(composite.band_names),
-            "surface:compositor": composite.attrs.get("compositor", "best_pixel_v2"),
-            "surface:source_count": len(composite.source_items),
-        },
+        "properties": properties,
         "links": [],
         "assets": _band_assets(
             band_names=composite.band_names,
             prior_hrefs=prior_hrefs,
             uncertainty_hrefs=uncertainty_hrefs,
+            composite_period=composite_period,
         ),
         "proj:shape": [grid.height, grid.width],
         "proj:transform": list(grid.transform_tuple),
@@ -70,8 +77,21 @@ def normalize_href(path: str | Path, root: str | Path) -> str:
         return path.as_uri()
 
 
-def asset_stem(index: int, band_name: str) -> str:
-    return f"{index + 1:02d}-{_safe_token(band_name)}"
+def safe_asset_token(value: str) -> str:
+    token = "".join(
+        character if character.isalnum() or character in "._-" else "-"
+        for character in str(value)
+    )
+    token = token.strip("._-")
+    return token or "value"
+
+
+def asset_stem(band_name: str) -> str:
+    return safe_asset_token(band_name)
+
+
+def asset_period_stem(composite_period: str) -> str:
+    return safe_asset_token(composite_period)
 
 
 def _band_assets(
@@ -79,34 +99,34 @@ def _band_assets(
     band_names: Sequence[str],
     prior_hrefs: Sequence[str],
     uncertainty_hrefs: Sequence[str],
+    composite_period: Optional[str],
 ) -> Dict[str, Any]:
     assets: Dict[str, Any] = {}
     for index, band_name in enumerate(band_names):
-        key_suffix = asset_stem(index, band_name).replace("-", "_").replace(".", "_")
+        key_suffix = asset_stem(band_name)
         assets[f"prior_{key_suffix}"] = _prior_asset(
             prior_hrefs[index],
             band_name=band_name,
             band_index=index,
+            composite_period=composite_period,
         )
         assets[f"uncertainty_{key_suffix}"] = _uncertainty_asset(
             uncertainty_hrefs[index],
             band_name=band_name,
             band_index=index,
+            composite_period=composite_period,
         )
     return assets
 
 
-def _safe_token(value: str) -> str:
-    token = "".join(
-        character if character.isalnum() or character in "._-" else "-"
-        for character in str(value)
-    )
-    token = token.strip("._-")
-    return token or "band"
-
-
-def _prior_asset(href: str, *, band_name: str, band_index: int) -> Dict[str, Any]:
-    return {
+def _prior_asset(
+    href: str,
+    *,
+    band_name: str,
+    band_index: int,
+    composite_period: Optional[str],
+) -> Dict[str, Any]:
+    asset: Dict[str, Any] = {
         "href": href,
         "type": "image/tiff; application=geotiff; profile=cloud-optimized",
         "title": f"Scaled surface prior: {band_name}",
@@ -123,10 +143,19 @@ def _prior_asset(href: str, *, band_name: str, band_index: int) -> Dict[str, Any
             }
         ],
     }
+    if composite_period is not None:
+        asset["surface:composite_period"] = str(composite_period)
+    return asset
 
 
-def _uncertainty_asset(href: str, *, band_name: str, band_index: int) -> Dict[str, Any]:
-    return {
+def _uncertainty_asset(
+    href: str,
+    *,
+    band_name: str,
+    band_index: int,
+    composite_period: Optional[str],
+) -> Dict[str, Any]:
+    asset: Dict[str, Any] = {
         "href": href,
         "type": "image/tiff; application=geotiff; profile=cloud-optimized",
         "title": f"Relative surface prior uncertainty: {band_name}",
@@ -144,6 +173,9 @@ def _uncertainty_asset(href: str, *, band_name: str, band_index: int) -> Dict[st
             }
         ],
     }
+    if composite_period is not None:
+        asset["surface:composite_period"] = str(composite_period)
+    return asset
 
 
 def _wgs84_geometry_and_bbox(grid: GridSpec) -> tuple[Optional[Mapping[str, Any]], Optional[list[float]]]:

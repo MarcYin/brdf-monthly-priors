@@ -37,6 +37,7 @@ def test_store_writes_tiled_deflate_geotiffs_and_stac_item(tmp_path):
         "wgs84_bounds": [0, 0, 2, 2],
         "native_bounds": [0, 0, 2, 2],
         "native_crs": "EPSG:4326",
+        "composite_period": "2024-07",
     }
     request_hash = stable_json_hash(request)
 
@@ -51,17 +52,20 @@ def test_store_writes_tiled_deflate_geotiffs_and_stac_item(tmp_path):
     assert stac_item["properties"]["surface:prior_type"] == "brdf"
     assert stac_item["properties"]["surface:asset_layout"] == "single-band-geotiff-per-band"
     assert stac_item["properties"]["surface:band_names"] == ["iso", "vol"]
-    assert stac_item["assets"]["prior_01_iso"]["href"] == "assets/prior/01-iso.tif"
-    assert stac_item["assets"]["prior_01_iso"]["surface:asset_kind"] == "prior"
-    assert stac_item["assets"]["prior_01_iso"]["surface:band_index"] == 0
-    assert len(stac_item["assets"]["prior_01_iso"]["raster:bands"]) == 1
-    assert stac_item["assets"]["uncertainty_02_vol"]["href"] == "assets/uncertainty/02-vol.tif"
-    assert stac_item["assets"]["uncertainty_02_vol"]["surface:asset_kind"] == "uncertainty"
-    assert stac_item["assets"]["uncertainty_02_vol"]["surface:band_index"] == 1
-    assert len(stac_item["assets"]["uncertainty_02_vol"]["raster:bands"]) == 1
+    assert stac_item["properties"]["surface:composite_period"] == "2024-07"
+    assert stac_item["assets"]["prior_iso"]["href"] == "assets/prior/2024-07/iso.tif"
+    assert stac_item["assets"]["prior_iso"]["surface:asset_kind"] == "prior"
+    assert stac_item["assets"]["prior_iso"]["surface:band_index"] == 0
+    assert stac_item["assets"]["prior_iso"]["surface:composite_period"] == "2024-07"
+    assert len(stac_item["assets"]["prior_iso"]["raster:bands"]) == 1
+    assert stac_item["assets"]["uncertainty_vol"]["href"] == "assets/uncertainty/2024-07/vol.tif"
+    assert stac_item["assets"]["uncertainty_vol"]["surface:asset_kind"] == "uncertainty"
+    assert stac_item["assets"]["uncertainty_vol"]["surface:band_index"] == 1
+    assert len(stac_item["assets"]["uncertainty_vol"]["raster:bands"]) == 1
     assert product.stac_item["id"] == "prior-fixture"
+    assert product.composite.attrs["composite_period"] == "2024-07"
 
-    with rasterio.open(tmp_path / request_hash / "assets" / "prior" / "01-iso.tif") as dataset:
+    with rasterio.open(tmp_path / request_hash / "assets" / "prior" / "2024-07" / "iso.tif") as dataset:
         assert dataset.count == 1
         assert dataset.dtypes == ("uint16",)
         assert dataset.nodata == 65535
@@ -73,7 +77,7 @@ def test_store_writes_tiled_deflate_geotiffs_and_stac_item(tmp_path):
         assert dataset.read(1).tolist() == [[1000, 2000], [3000, 65535]]
 
     with rasterio.open(
-        tmp_path / request_hash / "assets" / "uncertainty" / "01-iso.tif"
+        tmp_path / request_hash / "assets" / "uncertainty" / "2024-07" / "iso.tif"
     ) as dataset:
         assert dataset.count == 1
         assert dataset.dtypes == ("uint8",)
@@ -87,6 +91,7 @@ def test_store_writes_tiled_deflate_geotiffs_and_stac_item(tmp_path):
     loaded = store.load(request_hash, request=request)
 
     assert loaded.composite.band_names == ("iso", "vol")
+    assert loaded.composite.attrs["composite_period"] == "2024-07"
     assert loaded.composite.data.shape == (2, 2, 2)
     np.testing.assert_allclose(loaded.composite.data[1], [[0.4, 0.5], [0.6, 0.7]])
     np.testing.assert_allclose(loaded.composite.uncertainty[1], [[0, 50], [100, 150]])

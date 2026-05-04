@@ -8,17 +8,23 @@ The store layout is:
     stac-item.json
     assets/
       prior/
-        01-brdf_iso_red.tif
-        02-brdf_vol_red.tif
+        2024-07/
+          brdf_iso_red.tif
+          brdf_vol_red.tif
       uncertainty/
-        01-brdf_iso_red.tif
-        02-brdf_vol_red.tif
+        2024-07/
+          brdf_iso_red.tif
+          brdf_vol_red.tif
 ```
 
 ## Prior Assets
 
-Each `assets/prior/<index>-<band>.tif` file is a tiled, DEFLATE-compressed
-single-band GeoTIFF with no overviews.
+Each `assets/prior/<composite-period>/<band>.tif` file is a tiled,
+DEFLATE-compressed single-band GeoTIFF with no overviews. If no
+`composite_period` is provided by the caller, the file is written as
+`assets/prior/<band>.tif`.
+The period and band path tokens are filesystem-safe forms of the supplied
+labels; a monthly label like `2024-07` is preserved as-is.
 
 - Data type: `uint16`
 - Scale factor: `10000`
@@ -28,8 +34,10 @@ single-band GeoTIFF with no overviews.
 
 ## Uncertainty Assets
 
-Each `assets/uncertainty/<index>-<band>.tif` file is a tiled,
-DEFLATE-compressed single-band GeoTIFF with no overviews.
+Each `assets/uncertainty/<composite-period>/<band>.tif` file is a tiled,
+DEFLATE-compressed single-band GeoTIFF with no overviews. If no
+`composite_period` is provided by the caller, the file is written as
+`assets/uncertainty/<band>.tif`.
 
 - Data type: `uint8`
 - Unit: percent relative uncertainty
@@ -45,6 +53,7 @@ Important fields:
 
 - `properties.surface:schema_version`: package output schema version
 - `properties.surface:prior_type`: prior family, currently `brdf`
+- `properties.surface:composite_period`: optional caller-defined period label, such as `2024-07`
 - `properties.surface:asset_layout`: `single-band-geotiff-per-band`
 - `properties.surface:band_names`: ordered prior band list
 - `assets.*.href`: relative path to a one-band GeoTIFF

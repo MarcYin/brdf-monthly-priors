@@ -135,6 +135,13 @@ def _add_request_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--resolution", type=float, required=True)
     parser.add_argument("--band", action="append", dest="bands", default=None, help="Band name. Repeat to override defaults.")
+    parser.add_argument(
+        "--composite-period",
+        "--composite-month",
+        dest="composite_period",
+        default=None,
+        help="Caller-defined composite period label, for example 2024-07 for a monthly prior.",
+    )
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -164,6 +171,7 @@ def _build(args: argparse.Namespace) -> int:
         product_id=args.product_id,
         native_crs=args.native_crs,
         band_names=band_names,
+        composite_period=args.composite_period,
         rebuild=args.rebuild,
     )
     if args.json:
@@ -289,6 +297,7 @@ def _request_hash(provider: Provider, args: argparse.Namespace) -> str:
         product_id=args.product_id,
         native_crs=args.native_crs,
         band_names=tuple(args.bands or DEFAULT_BANDS),
+        composite_period=args.composite_period,
     )
 
 

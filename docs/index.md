@@ -31,10 +31,14 @@ product = provider.build_prior(
     wgs84_bounds=(-1.0, 51.0, -0.99, 51.01),
     resolution=500.0,
     band_names=("brdf_iso_red",),
+    composite_period="2024-07",
 )
 ```
 
-The returned `PriorProduct` contains the in-memory composite, output directory, and STAC Item dictionary.
+The returned `PriorProduct` contains the in-memory composite, output directory,
+and STAC Item dictionary. `composite_period` is a caller-defined label used in
+STAC metadata and asset paths; it does not make the package choose the month or
+temporal input policy.
 
 Input AOI bounds are always WGS84 `(west, south, east, north)`. The package converts them to the configured native CRS internally; the current BRDF default is MODIS/VIIRS Sinusoidal.
 

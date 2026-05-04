@@ -33,9 +33,12 @@ def test_provider_builds_and_cache_only_provider_retrieves(tmp_path):
         resolution=1,
         product_id="fixture-prior",
         band_names=("iso",),
+        composite_period="2024-07",
     )
 
     assert product.composite.data[0, 0, 0] == np.float32(0.2)
+    assert product.request["composite_period"] == "2024-07"
+    assert product.stac_item["assets"]["prior_iso"]["href"] == "assets/prior/2024-07/iso.tif"
     assert (tmp_path / product.request["request_hash"] / "stac-item.json").exists()
 
     cache_only = Provider(ProviderConfig(cache_dir=tmp_path, source_name="fixture"))
@@ -45,6 +48,7 @@ def test_provider_builds_and_cache_only_provider_retrieves(tmp_path):
         resolution=1,
         product_id="fixture-prior",
         band_names=("iso",),
+        composite_period="2024-07",
     )
 
     assert loaded.stac_item["id"] == "fixture-prior"

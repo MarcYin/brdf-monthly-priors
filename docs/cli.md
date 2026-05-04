@@ -37,9 +37,13 @@ surface-priors build \
   --native-crs EPSG:4326 \
   --resolution 500 \
   --band iso \
+  --composite-period 2024-07 \
   --local-observations observations.json \
   --cache-dir .surface-cache
 ```
+
+`--composite-period` is a caller-defined label used in STAC metadata and asset
+paths. For monthly priors, use a stable month string such as `2024-07`.
 
 ## Earthaccess Input
 
@@ -57,6 +61,7 @@ surface-priors build \
   --product mcd19 \
   --temporal-range 2024-07-01 2024-07-31 \
   --sample-every-days 7 \
+  --composite-period 2024-07 \
   --wgs84-bounds -2.0 51.0 -1.0 52.0 \
   --resolution 0.005 \
   --band brdf_iso_red \
@@ -82,6 +87,7 @@ surface-priors build \
   --gee-product mcd43a1 \
   --temporal-range 2024-07-01 2024-07-31 \
   --sample-every-days 7 \
+  --composite-period 2024-07 \
   --wgs84-bounds -2.0 51.0 -1.0 52.0 \
   --resolution 500 \
   --cache-dir .surface-cache \
@@ -99,6 +105,7 @@ surface-priors build \
   --gee-collection-id MODIS/061/MCD43A1 \
   --temporal-range 2024-07-01 2024-07-31 \
   --sample-every-days 7 \
+  --composite-period 2024-07 \
   --wgs84-bounds -2.0 51.0 -1.0 52.0 \
   --resolution 500 \
   --band brdf_iso_red \

@@ -119,6 +119,7 @@ def main() -> int:
     args = parse_args()
     wgs84_bounds = (args.west, args.south, args.east, args.north)
     temporal_ranges = ((args.start_date, args.end_date),)
+    composite_period = composite_period_label(args.start_date, args.end_date)
     band_names = tuple(args.bands or DEFAULT_BANDS)
     output_root = args.output_root.expanduser().resolve()
     output_root.mkdir(parents=True, exist_ok=True)
@@ -134,6 +135,7 @@ def main() -> int:
         wgs84_bounds=wgs84_bounds,
         resolution=500.0,
         band_names=band_names,
+        composite_period=composite_period,
         rebuild=True,
     )
 
@@ -164,6 +166,7 @@ def main() -> int:
         wgs84_bounds=wgs84_bounds,
         resolution=gee_product.grid.resolution,
         band_names=band_names,
+        composite_period=composite_period,
         rebuild=True,
     )
 
@@ -173,6 +176,7 @@ def main() -> int:
         official_granule_count=len(official_paths),
         official_observation_count=len(official_observations),
     )
+    summary["composite_period"] = composite_period
     if not args.skip_figures:
         figures = write_figures(
             gee_product=gee_product,
@@ -189,6 +193,13 @@ def main() -> int:
     print(f"gee_stac={Path(gee_product.output_dir) / 'stac-item.json'}")
     print(f"official_stac={Path(official_product.output_dir) / 'stac-item.json'}")
     return 0
+
+
+def composite_period_label(start_date: str, end_date: str) -> str:
+    start_month = start_date[:7]
+    if end_date.startswith(start_month):
+        return start_month
+    return f"{start_date}..{end_date}"
 
 
 def download_official_mcd43a1(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
 
@@ -11,7 +12,7 @@ import numpy as np
 from surface_priors._version import __version__
 from surface_priors.encoding import decode_prior, decode_relative_uncertainty
 from surface_priors.geotiff import write_prior_band_geotiff, write_uncertainty_band_geotiff
-from surface_priors.stac import asset_stem, build_stac_item, normalize_href
+from surface_priors.stac import asset_period_stem, asset_stem, build_stac_item, normalize_href
 from surface_priors.types import (
     DEFAULT_PRIOR_NODATA,
     SCHEMA_VERSION,
@@ -60,14 +61,21 @@ class CompositeStore:
         assets_dir = destination / "assets"
         if assets_dir.exists():
             shutil.rmtree(assets_dir)
-        prior_dir = assets_dir / "prior"
-        uncertainty_dir = assets_dir / "uncertainty"
+        composite_period = _composite_period(request, composite)
+        prior_dir = _asset_kind_dir(assets_dir, "prior", composite_period)
+        uncertainty_dir = _asset_kind_dir(assets_dir, "uncertainty", composite_period)
         prior_dir.mkdir(parents=True, exist_ok=True)
         uncertainty_dir.mkdir(parents=True, exist_ok=True)
+        _validate_unique_asset_stems(composite.band_names)
+        if composite_period is not None and composite.attrs.get("composite_period") != composite_period:
+            composite = replace(
+                composite,
+                attrs={**dict(composite.attrs), "composite_period": composite_period},
+            )
         prior_hrefs = []
         uncertainty_hrefs = []
         for band_index, band_name in enumerate(composite.band_names):
-            filename = f"{asset_stem(band_index, band_name)}.tif"
+            filename = f"{asset_stem(band_name)}.tif"
             prior_path = write_prior_band_geotiff(
                 prior_dir / filename,
                 composite=composite,
@@ -87,6 +95,7 @@ class CompositeStore:
             prior_hrefs=prior_hrefs,
             uncertainty_hrefs=uncertainty_hrefs,
             created_at=created_at,
+            composite_period=composite_period,
         )
         stac_item["properties"]["surface:schema_version"] = SCHEMA_VERSION
         stac_item["properties"]["surface:package_version"] = __version__
@@ -152,6 +161,10 @@ def load_product(path: Union[str, Path], request: Optional[Mapping[str, Any]] = 
     data = decode_prior(prior_encoded)
     uncertainty = decode_relative_uncertainty(uncertainty_encoded)
     shape = grid.shape
+    attrs = dict(stac_item["properties"].get("surface:attrs", {}))
+    composite_period = stac_item["properties"].get("surface:composite_period")
+    if composite_period is not None:
+        attrs.setdefault("composite_period", composite_period)
     composite = PriorComposite(
         product_id=stac_item["id"],
         grid=grid,
@@ -163,7 +176,7 @@ def load_product(path: Union[str, Path], request: Optional[Mapping[str, Any]] = 
         selected_observation=np.full(shape, -1, dtype="int16"),
         observation_count=np.zeros(shape, dtype="uint16"),
         source_items=stac_item["properties"].get("surface:source_items", ()),
-        attrs=stac_item["properties"].get("surface:attrs", {}),
+        attrs=attrs,
     )
     request_payload = {} if request is None else dict(request)
     request_payload.setdefault("request_hash", stac_item["properties"]["surface:request_hash"])
@@ -244,6 +257,33 @@ def _asset_href(source: Path, href: str) -> str | Path:
     if "://" in href:
         return href
     return source / href
+
+
+def _composite_period(request: Mapping[str, Any], composite: PriorComposite) -> Optional[str]:
+    value = request.get("composite_period", composite.attrs.get("composite_period"))
+    if value is None:
+        return None
+    value = str(value).strip()
+    return value or None
+
+
+def _asset_kind_dir(assets_dir: Path, kind: str, composite_period: Optional[str]) -> Path:
+    directory = assets_dir / kind
+    if composite_period is not None:
+        directory = directory / asset_period_stem(composite_period)
+    return directory
+
+
+def _validate_unique_asset_stems(band_names: Any) -> None:
+    stems: dict[str, str] = {}
+    for band_name in band_names:
+        stem = asset_stem(str(band_name))
+        previous = stems.get(stem)
+        if previous is not None:
+            raise ValueError(
+                f"band names {previous!r} and {band_name!r} both map to asset filename {stem!r}"
+            )
+        stems[stem] = str(band_name)
 
 
 def _dataset_signature(dataset: Any) -> tuple[Any, ...]:

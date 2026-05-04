@@ -29,6 +29,7 @@ product = provider.build_prior(
     wgs84_bounds=(-1.0, 51.0, -0.99, 51.01),
     resolution=500.0,
     band_names=("brdf_iso_red",),
+    composite_period="2024-07",
 )
 ```
 
@@ -39,9 +40,11 @@ The output directory contains:
   stac-item.json
   assets/
     prior/
-      01-brdf_iso_red.tif
+      2024-07/
+        brdf_iso_red.tif
     uncertainty/
-      01-brdf_iso_red.tif
+      2024-07/
+        brdf_iso_red.tif
 ```
 
 ## Contract
@@ -72,6 +75,7 @@ Callers own:
 
 - Which observations to use for a prior.
 - Any observation-day, month, season, or year logic.
+- The optional `composite_period` label, such as `2024-07`, when assets should carry a monthly path segment.
 - NASA/Earthdata search policy and temporal filtering.
 - SIAC atmospheric correction, SWIR refine routing, spectral mapping, and downstream `SurfacePrior` construction.
 
@@ -128,6 +132,7 @@ product = provider.build_prior(
     product_id="mcd43a1-prior",
     wgs84_bounds=(-2.0, 51.0, -1.0, 52.0),
     resolution=500.0,
+    composite_period="2024-07",
 )
 ```
 
@@ -145,6 +150,7 @@ surface-priors build \
   --wgs84-bounds -1.0 51.0 -0.99 51.01 \
   --resolution 500 \
   --band brdf_iso_red \
+  --composite-period 2024-07 \
   --local-observations observations.json \
   --cache-dir .surface-cache
 ```
@@ -157,6 +163,7 @@ surface-priors build \
   --gee-product mcd43a1 \
   --temporal-range 2024-07-01 2024-07-31 \
   --sample-every-days 7 \
+  --composite-period 2024-07 \
   --wgs84-bounds -2.0 51.0 -1.0 52.0 \
   --resolution 500 \
   --cache-dir .surface-cache \

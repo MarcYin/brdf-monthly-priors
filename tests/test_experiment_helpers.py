@@ -42,6 +42,11 @@ def test_filter_results_by_native_date_excludes_overlapping_windows():
     assert filtered == [results[1]]
 
 
+def test_composite_period_label_uses_month_for_single_month_ranges():
+    assert experiment.composite_period_label("2024-07-01", "2024-07-31") == "2024-07"
+    assert experiment.composite_period_label("2024-07-20", "2024-08-05") == "2024-07-20..2024-08-05"
+
+
 def test_band_comparison_metrics_reports_scatter_statistics():
     gee = np.array([[1.0, 2.0], [np.nan, 4.0]], dtype="float32")
     official = np.array([[1.0, 2.1], [3.0, np.nan]], dtype="float32")
