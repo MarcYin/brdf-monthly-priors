@@ -1,5 +1,5 @@
-site_name: BRDF Monthly Priors
-site_description: Native-grid BRDF prior composites persisted as STAC/GeoTIFF products.
+site_name: Surface Priors
+site_description: Native-grid surface prior products persisted as STAC/GeoTIFF assets.
 site_url: https://MarcYin.github.io/surface_prior/
 repo_url: https://github.com/MarcYin/surface_prior
 repo_name: MarcYin/surface_prior

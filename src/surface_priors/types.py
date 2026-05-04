@@ -6,13 +6,14 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
-SCHEMA_VERSION = "brdf-monthly-priors/v3"
+SCHEMA_VERSION = "surface-priors/v1"
 STAC_VERSION = "1.0.0"
 PROJECTION_EXTENSION = "https://stac-extensions.github.io/projection/v1.1.0/schema.json"
 RASTER_EXTENSION = "https://stac-extensions.github.io/raster/v1.1.0/schema.json"
 WGS84_CRS = "EPSG:4326"
 MODIS_SINUSOIDAL_CRS = "+proj=sinu +R=6371007.181 +nadgrids=@null +wktext +units=m +no_defs"
-DEFAULT_BRDF_CRS = MODIS_SINUSOIDAL_CRS
+DEFAULT_NATIVE_CRS = MODIS_SINUSOIDAL_CRS
+DEFAULT_BRDF_CRS = DEFAULT_NATIVE_CRS
 DEFAULT_SCALE_FACTOR = 10000
 DEFAULT_PRIOR_NODATA = 65535
 DEFAULT_UNCERTAINTY_NODATA = 255
@@ -124,13 +125,15 @@ class GridSpec:
     def from_wgs84_bounds(
         cls,
         wgs84_bounds: Sequence[float],
-        brdf_crs: str = DEFAULT_BRDF_CRS,
+        native_crs: str = DEFAULT_NATIVE_CRS,
+        brdf_crs: Optional[str] = None,
         resolution: float = 500.0,
     ) -> "GridSpec":
-        native_bounds = transform_wgs84_bounds(wgs84_bounds, brdf_crs)
+        crs = native_crs if brdf_crs is None else brdf_crs
+        native_bounds = transform_wgs84_bounds(wgs84_bounds, crs)
         return cls.from_bounds(
             bounds=native_bounds,
-            crs=brdf_crs,
+            crs=crs,
             resolution=resolution,
             wgs84_bounds=wgs84_bounds,
         )
@@ -211,7 +214,7 @@ class Observation:
 
 @dataclass(frozen=True)
 class PriorComposite:
-    """Best-pixel BRDF prior composite before GeoTIFF encoding."""
+    """Best-pixel surface prior composite before GeoTIFF encoding."""
 
     product_id: str
     grid: GridSpec
@@ -263,7 +266,7 @@ class PriorComposite:
 
 @dataclass(frozen=True)
 class PriorProduct:
-    """Persisted BRDF prior product represented as a STAC Item."""
+    """Persisted surface prior product represented as a STAC Item."""
 
     request: Mapping[str, Any]
     grid: GridSpec

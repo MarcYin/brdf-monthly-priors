@@ -22,8 +22,8 @@ Recommended adapter responsibilities:
 - Let this package convert WGS84 bounds to native BRDF grid bounds.
 - For Google Earth Engine sources, configure `EdownGeeSource` with SIAC-selected temporal ranges; `edown` downloads the source-native GeoTIFFs and the provider composites those arrays directly.
 - Use `sample_every_days` when SIAC wants a reduced-download prior, for example one observation every `7` days inside a month range.
-- Validate `brdf:schema_version` on the returned STAC Item.
-- Iterate STAC assets in `properties.brdf:band_names` order using `brdf:asset_kind` and `brdf:band_index`.
+- Validate `surface:schema_version` on the returned STAC Item.
+- Iterate STAC assets in `properties.surface:band_names` order using `surface:asset_kind` and `surface:band_index`.
 - Read each `prior` GeoTIFF as one `uint16` band and apply scale `0.0001`.
 - Read each `uncertainty` GeoTIFF as one relative percent uncertainty band; treat `255` as suspicious/missing.
 - Keep target-sensor spectral response mapping in SIAC.

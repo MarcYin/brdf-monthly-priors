@@ -1,7 +1,7 @@
 import numpy as np
 
-from brdf_monthly_priors.composite import PriorCompositor
-from brdf_monthly_priors.types import GridSpec, Observation
+from surface_priors.composite import PriorCompositor
+from surface_priors.types import GridSpec, Observation
 
 
 def test_best_pixel_prefers_quality_then_sample_index_without_time():

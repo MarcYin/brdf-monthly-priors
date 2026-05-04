@@ -24,7 +24,7 @@ jobs:
       - name: Ruff
         run: ruff check .
       - name: Tests
-        run: pytest --cov=brdf_monthly_priors --cov-report=term-missing
+        run: pytest --cov=surface_priors --cov-report=term-missing
       - name: Build package
         run: python -m build
       - name: Check package

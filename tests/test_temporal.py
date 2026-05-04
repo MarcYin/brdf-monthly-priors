@@ -1,7 +1,7 @@
 import pytest
 
-from brdf_monthly_priors.sources.earthaccess import EarthaccessSource, EarthdataCollection
-from brdf_monthly_priors.temporal import sample_temporal_ranges, temporal_ranges_name
+from surface_priors.sources.earthaccess import EarthaccessSource, EarthdataCollection
+from surface_priors.temporal import sample_temporal_ranges, temporal_ranges_name
 
 
 def test_sample_temporal_ranges_preserves_ranges_by_default():

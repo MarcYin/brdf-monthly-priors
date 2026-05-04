@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from brdf_monthly_priors.types import (
+from surface_priors.types import (
     DEFAULT_PRIOR_NODATA,
     DEFAULT_SCALE_FACTOR,
     DEFAULT_UNCERTAINTY_NODATA,
@@ -13,7 +13,7 @@ from brdf_monthly_priors.types import (
 
 @dataclass(frozen=True)
 class EncodingConfig:
-    """Raster encoding parameters for persisted BRDF priors."""
+    """Raster encoding parameters for persisted surface priors."""
 
     scale_factor: int = DEFAULT_SCALE_FACTOR
     prior_nodata: int = DEFAULT_PRIOR_NODATA
@@ -25,7 +25,7 @@ DEFAULT_ENCODING = EncodingConfig()
 
 
 def encode_prior(data: np.ndarray, config: EncodingConfig = DEFAULT_ENCODING) -> np.ndarray:
-    """Encode floating BRDF coefficients as uint16 with scale factor 10000."""
+    """Encode floating prior values as uint16 with scale factor 10000."""
 
     data = np.asarray(data)
     encoded = np.full(data.shape, config.prior_nodata, dtype="uint16")
@@ -59,6 +59,7 @@ def encode_relative_uncertainty(
     )
     encoded[valid] = np.rint(uncertainty_percent[valid]).astype("uint8")
     return encoded
+
 
 def decode_relative_uncertainty(
     uncertainty: np.ndarray,

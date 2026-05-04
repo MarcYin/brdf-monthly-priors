@@ -3,19 +3,19 @@
 ## Install
 
 ```bash
-pip install brdf-monthly-priors
+pip install surface-priors
 ```
 
 Optional NASA Earthdata search support:
 
 ```bash
-pip install "brdf-monthly-priors[earthdata]"
+pip install "surface-priors[earthdata]"
 ```
 
 Optional Google Earth Engine support through `edown`:
 
 ```bash
-pip install "brdf-monthly-priors[gee]"
+pip install "surface-priors[gee]"
 ```
 
 ## Build From Google Earth Engine
@@ -23,17 +23,17 @@ pip install "brdf-monthly-priors[gee]"
 `EdownGeeSource` downloads native-grid GeoTIFF observations with `edown`, then passes those observations to the same prior compositor. The built-in `mcd43a1` preset maps the default BRDF kernel bands to `MODIS/061/MCD43A1`: red, green, blue, NIR, SWIR1, and SWIR2, each with `iso`, `vol`, and `geo` coefficients.
 
 ```python
-from brdf_monthly_priors import Provider, ProviderConfig
-from brdf_monthly_priors.sources import EdownGeeSource
+from surface_priors import Provider, ProviderConfig
+from surface_priors.sources import EdownGeeSource
 
 source = EdownGeeSource.for_product(
     "mcd43a1",
     temporal_ranges=(("2024-07-01", "2024-07-31"),),
     sample_every_days=7,
-    output_root=".brdf-gee-cache",
+    output_root=".surface-gee-cache",
 )
 
-provider = Provider(ProviderConfig(cache_dir=".brdf-cache", source=source))
+provider = Provider(ProviderConfig(cache_dir=".surface-cache", source=source))
 product = provider.build_prior(
     product_id="mcd43a1-prior",
     wgs84_bounds=(-2.0, 51.0, -1.0, 52.0),
@@ -50,8 +50,8 @@ Any source that implements `ObservationSource` can feed the provider. Observatio
 ```python
 import numpy as np
 
-from brdf_monthly_priors import Observation, Provider, ProviderConfig
-from brdf_monthly_priors.sources import InMemorySource
+from surface_priors import Observation, Provider, ProviderConfig
+from surface_priors.sources import InMemorySource
 
 obs = Observation(
     data=np.ones((1, 2, 2), dtype="float32") * 0.25,
@@ -62,12 +62,12 @@ obs = Observation(
 )
 
 source = InMemorySource((obs,), name="example")
-provider = Provider(ProviderConfig(cache_dir=".brdf-cache", source=source))
+provider = Provider(ProviderConfig(cache_dir=".surface-cache", source=source))
 
 product = provider.build_prior(
     product_id="example-prior",
     wgs84_bounds=(0, 0, 2, 2),
-    brdf_crs="EPSG:4326",
+    native_crs="EPSG:4326",
     resolution=1,
     band_names=("iso",),
 )
@@ -76,9 +76,9 @@ product = provider.build_prior(
 The product is written to:
 
 ```text
-.brdf-cache/<request-hash>/stac-item.json
-.brdf-cache/<request-hash>/assets/prior/01-iso.tif
-.brdf-cache/<request-hash>/assets/uncertainty/01-iso.tif
+.surface-cache/<request-hash>/stac-item.json
+.surface-cache/<request-hash>/assets/prior/01-iso.tif
+.surface-cache/<request-hash>/assets/uncertainty/01-iso.tif
 ```
 
 ## Retrieve A Prepared Store
@@ -86,11 +86,11 @@ The product is written to:
 Use the same source namespace that built the cache:
 
 ```python
-provider = Provider(ProviderConfig(cache_dir=".brdf-cache", source_name="example"))
+provider = Provider(ProviderConfig(cache_dir=".surface-cache", source_name="example"))
 product = provider.build_prior(
     product_id="example-prior",
     wgs84_bounds=(0, 0, 2, 2),
-    brdf_crs="EPSG:4326",
+    native_crs="EPSG:4326",
     resolution=1,
     band_names=("iso",),
 )

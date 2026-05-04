@@ -3,17 +3,21 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "brdf-monthly-priors"
+name = "surface-priors"
 dynamic = ["version"]
-description = "Build native-grid BRDF prior composites and persist them as STAC/GeoTIFF products."
+description = "Build native-grid surface prior products and persist them as STAC/GeoTIFF assets."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [
-  { name = "BRDF Monthly Priors contributors" }
+  { name = "Surface Priors contributors" }
 ]
 keywords = [
+  "surface-prior",
+  "surface-reflectance",
   "brdf",
+  "sentinel-2",
+  "landsat",
   "modis",
   "viirs",
   "earthaccess",
@@ -88,10 +92,10 @@ Repository = "https://github.com/MarcYin/surface_prior"
 Issues = "https://github.com/MarcYin/surface_prior/issues"
 
 [project.scripts]
-brdf-monthly-priors = "brdf_monthly_priors.cli:main"
+surface-priors = "surface_priors.cli:main"
 
 [tool.hatch.version]
-path = "src/brdf_monthly_priors/_version.py"
+path = "src/surface_priors/_version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -105,7 +109,7 @@ include = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/brdf_monthly_priors"]
+packages = ["src/surface_priors"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

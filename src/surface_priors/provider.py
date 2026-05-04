@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, Union
 
-from brdf_monthly_priors.composite import PriorCompositor
-from brdf_monthly_priors.persistence import CompositeStore, stable_json_hash
-from brdf_monthly_priors.sources.base import ObservationSource
-from brdf_monthly_priors.types import (
+from surface_priors.composite import PriorCompositor
+from surface_priors.persistence import CompositeStore, stable_json_hash
+from surface_priors.sources.base import ObservationSource
+from surface_priors.types import (
     DEFAULT_BANDS,
-    DEFAULT_BRDF_CRS,
+    DEFAULT_NATIVE_CRS,
     GridSpec,
     Observation,
     PriorProduct,
@@ -17,12 +18,12 @@ from brdf_monthly_priors.types import (
 
 
 def default_cache_dir() -> Path:
-    return Path.home() / ".cache" / "brdf-monthly-priors"
+    return Path.home() / ".cache" / "surface-priors"
 
 
 @dataclass
 class ProviderConfig:
-    """Configuration for the BRDF prior provider."""
+    """Configuration for a surface prior provider."""
 
     cache_dir: Union[str, Path] = field(default_factory=default_cache_dir)
     source: Optional[ObservationSource] = None
@@ -32,7 +33,7 @@ class ProviderConfig:
 
 
 class Provider:
-    """Build or retrieve a native-grid BRDF prior product."""
+    """Build or retrieve a native-grid surface prior product."""
 
     def __init__(self, config: Optional[ProviderConfig] = None):
         self.config = config or ProviderConfig()
@@ -44,15 +45,17 @@ class Provider:
         wgs84_bounds: Sequence[float],
         resolution: float,
         product_id: str,
-        brdf_crs: str = DEFAULT_BRDF_CRS,
+        native_crs: str = DEFAULT_NATIVE_CRS,
+        brdf_crs: Optional[str] = None,
         band_names: Sequence[str] = DEFAULT_BANDS,
         observations: Optional[Sequence[Observation]] = None,
         rebuild: bool = False,
     ) -> PriorProduct:
+        crs = native_crs if brdf_crs is None else brdf_crs
         band_names = tuple(str(band) for band in band_names)
         grid = self._grid_for_request(
             wgs84_bounds=wgs84_bounds,
-            brdf_crs=brdf_crs,
+            native_crs=crs,
             resolution=resolution,
             band_names=band_names,
         )
@@ -88,13 +91,15 @@ class Provider:
         wgs84_bounds: Sequence[float],
         resolution: float,
         product_id: str,
-        brdf_crs: str = DEFAULT_BRDF_CRS,
+        native_crs: str = DEFAULT_NATIVE_CRS,
+        brdf_crs: Optional[str] = None,
         band_names: Sequence[str] = DEFAULT_BANDS,
     ) -> str:
+        crs = native_crs if brdf_crs is None else brdf_crs
         band_names = tuple(str(band) for band in band_names)
         grid = self._grid_for_request(
             wgs84_bounds=wgs84_bounds,
-            brdf_crs=brdf_crs,
+            native_crs=crs,
             resolution=resolution,
             band_names=band_names,
         )
@@ -110,22 +115,23 @@ class Provider:
         self,
         *,
         wgs84_bounds: Sequence[float],
-        brdf_crs: str,
+        native_crs: str,
         resolution: float,
         band_names: Sequence[str],
     ) -> GridSpec:
         if self.config.source is not None:
             resolver = getattr(self.config.source, "resolve_grid", None)
             if callable(resolver):
+                crs_key = _native_crs_parameter_name(resolver)
                 return resolver(
                     wgs84_bounds=wgs84_bounds,
-                    brdf_crs=brdf_crs,
+                    **{crs_key: native_crs},
                     resolution=resolution,
                     band_names=band_names,
                 )
         return GridSpec.from_wgs84_bounds(
             wgs84_bounds=wgs84_bounds,
-            brdf_crs=brdf_crs,
+            native_crs=native_crs,
             resolution=resolution,
         )
 
@@ -143,7 +149,7 @@ class Provider:
             "product_id": str(product_id),
             "wgs84_bounds": None if grid.wgs84_bounds is None else list(grid.wgs84_bounds),
             "native_bounds": list(grid.bounds),
-            "brdf_crs": grid.crs,
+            "native_crs": grid.crs,
             "resolution": grid.resolution,
             "width": grid.width,
             "height": grid.height,
@@ -153,3 +159,17 @@ class Provider:
         }
 
     get_prior = build_prior
+
+
+def _native_crs_parameter_name(resolver: Any) -> str:
+    """Choose the source grid resolver CRS keyword with legacy compatibility."""
+
+    try:
+        parameters = inspect.signature(resolver).parameters
+    except (TypeError, ValueError):
+        return "native_crs"
+    if "native_crs" in parameters:
+        return "native_crs"
+    if "brdf_crs" in parameters:
+        return "brdf_crs"
+    return "native_crs"

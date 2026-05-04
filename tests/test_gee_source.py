@@ -7,8 +7,8 @@ import numpy as np
 import rasterio
 from rasterio.transform import from_origin
 
-from brdf_monthly_priors.provider import Provider, ProviderConfig
-from brdf_monthly_priors.sources.gee import EdownGeeSource, gee_product_preset
+from surface_priors.provider import Provider, ProviderConfig
+from surface_priors.sources.gee import EdownGeeSource, gee_product_preset
 
 
 def test_gee_product_preset_maps_default_brdf_bands():
@@ -38,7 +38,7 @@ def test_provider_builds_from_edown_source_native_grid(tmp_path, monkeypatch):
     product = provider.build_prior(
         product_id="gee-prior",
         wgs84_bounds=(0, 0, 1, 1),
-        brdf_crs="EPSG:4326",
+        native_crs="EPSG:4326",
         resolution=999,
         band_names=("iso",),
     )

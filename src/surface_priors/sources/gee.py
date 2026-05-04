@@ -8,8 +8,8 @@ from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from brdf_monthly_priors.temporal import sample_temporal_ranges, temporal_ranges_name
-from brdf_monthly_priors.types import MODIS_SINUSOIDAL_CRS, GridSpec, Observation
+from surface_priors.temporal import sample_temporal_ranges, temporal_ranges_name
+from surface_priors.types import MODIS_SINUSOIDAL_CRS, GridSpec, Observation
 
 MCD43A1_COLLECTION_ID = "MODIS/061/MCD43A1"
 MCD43A1_SCALE_FACTOR = 0.001
@@ -178,11 +178,11 @@ class EdownGeeSource:
         self,
         *,
         wgs84_bounds: Sequence[float],
-        brdf_crs: str,
+        native_crs: str,
         resolution: float,
         band_names: Sequence[str],
     ) -> GridSpec:
-        del brdf_crs, resolution
+        del native_crs, resolution
         summaries = self._download(wgs84_bounds=wgs84_bounds, band_names=band_names)
         first_path = _first_successful_tiff(summaries)
         return _grid_from_tiff(first_path, wgs84_bounds=wgs84_bounds)
@@ -239,7 +239,7 @@ class EdownGeeSource:
         except ImportError as exc:
             raise ImportError(
                 "EdownGeeSource requires the 'gee' extra: "
-                "pip install 'brdf-monthly-priors[gee]'"
+                "pip install 'surface-priors[gee]'"
             ) from exc
         with suppress(ModuleNotFoundError):
             _install_edown_sinusoidal_compatibility()
@@ -311,7 +311,7 @@ def _install_edown_sinusoidal_compatibility() -> None:
     except ImportError:
         raise
 
-    if getattr(edown_download, "_brdf_monthly_priors_sin_patch", False):
+    if getattr(edown_download, "_surface_priors_sin_patch", False):
         return
 
     original_get_image_grid_info = edown_grid.get_image_grid_info
@@ -376,7 +376,7 @@ def _install_edown_sinusoidal_compatibility() -> None:
     edown_discovery.get_image_grid_info = get_image_grid_info
     edown_download.get_image_grid_info = get_image_grid_info
     edown_download._fetch_chunk = fetch_chunk
-    edown_download._brdf_monthly_priors_sin_patch = True
+    edown_download._surface_priors_sin_patch = True
 
 
 def _is_modis_sinusoidal_code(value: Any) -> bool:

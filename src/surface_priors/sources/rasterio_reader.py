@@ -5,8 +5,8 @@ from typing import Mapping, Optional, Sequence
 
 import numpy as np
 
-from brdf_monthly_priors.sources.earthaccess import FetchedGranule
-from brdf_monthly_priors.types import GridSpec, Observation
+from surface_priors.sources.earthaccess import FetchedGranule
+from surface_priors.types import GridSpec, Observation
 
 
 @dataclass(frozen=True)
@@ -36,7 +36,7 @@ class NativeRasterioStackReader:
         except ImportError as exc:
             raise ImportError(
                 "NativeRasterioStackReader requires rasterio. "
-                "Install brdf-monthly-priors with its default dependencies."
+                "Install surface-priors with its default dependencies."
             ) from exc
 
         observations = []

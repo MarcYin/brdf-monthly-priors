@@ -3,8 +3,8 @@ import json
 import numpy as np
 import rasterio
 
-from brdf_monthly_priors.persistence import CompositeStore, stable_json_hash
-from brdf_monthly_priors.types import GridSpec, PriorComposite
+from surface_priors.persistence import CompositeStore, stable_json_hash
+from surface_priors.types import GridSpec, PriorComposite
 
 
 def test_store_writes_tiled_deflate_geotiffs_and_stac_item(tmp_path):
@@ -36,7 +36,7 @@ def test_store_writes_tiled_deflate_geotiffs_and_stac_item(tmp_path):
         "product_id": "prior-fixture",
         "wgs84_bounds": [0, 0, 2, 2],
         "native_bounds": [0, 0, 2, 2],
-        "brdf_crs": "EPSG:4326",
+        "native_crs": "EPSG:4326",
     }
     request_hash = stable_json_hash(request)
 
@@ -47,15 +47,17 @@ def test_store_writes_tiled_deflate_geotiffs_and_stac_item(tmp_path):
     assert stac_path.exists()
     stac_item = json.loads(stac_path.read_text(encoding="utf-8"))
     assert stac_item["type"] == "Feature"
-    assert stac_item["properties"]["brdf:asset_layout"] == "single-band-geotiff-per-band"
-    assert stac_item["properties"]["brdf:band_names"] == ["iso", "vol"]
+    assert stac_item["properties"]["surface:schema_version"] == "surface-priors/v1"
+    assert stac_item["properties"]["surface:prior_type"] == "brdf"
+    assert stac_item["properties"]["surface:asset_layout"] == "single-band-geotiff-per-band"
+    assert stac_item["properties"]["surface:band_names"] == ["iso", "vol"]
     assert stac_item["assets"]["prior_01_iso"]["href"] == "assets/prior/01-iso.tif"
-    assert stac_item["assets"]["prior_01_iso"]["brdf:asset_kind"] == "prior"
-    assert stac_item["assets"]["prior_01_iso"]["brdf:band_index"] == 0
+    assert stac_item["assets"]["prior_01_iso"]["surface:asset_kind"] == "prior"
+    assert stac_item["assets"]["prior_01_iso"]["surface:band_index"] == 0
     assert len(stac_item["assets"]["prior_01_iso"]["raster:bands"]) == 1
     assert stac_item["assets"]["uncertainty_02_vol"]["href"] == "assets/uncertainty/02-vol.tif"
-    assert stac_item["assets"]["uncertainty_02_vol"]["brdf:asset_kind"] == "uncertainty"
-    assert stac_item["assets"]["uncertainty_02_vol"]["brdf:band_index"] == 1
+    assert stac_item["assets"]["uncertainty_02_vol"]["surface:asset_kind"] == "uncertainty"
+    assert stac_item["assets"]["uncertainty_02_vol"]["surface:band_index"] == 1
     assert len(stac_item["assets"]["uncertainty_02_vol"]["raster:bands"]) == 1
     assert product.stac_item["id"] == "prior-fixture"
 

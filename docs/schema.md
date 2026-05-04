@@ -43,13 +43,14 @@ DEFLATE-compressed single-band GeoTIFF with no overviews.
 
 Important fields:
 
-- `properties.brdf:schema_version`: package output schema version
-- `properties.brdf:asset_layout`: `single-band-geotiff-per-band`
-- `properties.brdf:band_names`: ordered BRDF band list
+- `properties.surface:schema_version`: package output schema version
+- `properties.surface:prior_type`: prior family, currently `brdf`
+- `properties.surface:asset_layout`: `single-band-geotiff-per-band`
+- `properties.surface:band_names`: ordered prior band list
 - `assets.*.href`: relative path to a one-band GeoTIFF
-- `assets.*.brdf:asset_kind`: `prior` or `uncertainty`
-- `assets.*.brdf:band_name`: source BRDF band name
-- `assets.*.brdf:band_index`: zero-based band order
+- `assets.*.surface:asset_kind`: `prior` or `uncertainty`
+- `assets.*.surface:band_name`: source prior band name
+- `assets.*.surface:band_index`: zero-based band order
 - `proj:wkt2`: native CRS
 - `proj:shape`: raster shape
 - `proj:transform`: affine transform

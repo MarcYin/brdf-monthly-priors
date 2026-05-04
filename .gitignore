@@ -13,4 +13,5 @@ __pycache__/
 * 2.py
 * 2.md
 .brdf-cache/
+.surface-cache/
 site/

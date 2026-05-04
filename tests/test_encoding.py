@@ -1,6 +1,6 @@
 import numpy as np
 
-from brdf_monthly_priors.encoding import encode_prior, encode_relative_uncertainty
+from surface_priors.encoding import encode_prior, encode_relative_uncertainty
 
 
 def test_prior_encoding_uses_uint16_scale_factor():

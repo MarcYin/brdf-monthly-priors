@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Sequence
 
-from brdf_monthly_priors.types import (
+from surface_priors.types import (
     PROJECTION_EXTENSION,
     RASTER_EXTENSION,
     SCHEMA_VERSION,
@@ -37,12 +37,13 @@ def build_stac_item(
         "properties": {
             "datetime": None,
             "created": created_at or utc_now_iso(),
-            "brdf:request_hash": request_hash,
-            "brdf:schema_version": SCHEMA_VERSION,
-            "brdf:asset_layout": "single-band-geotiff-per-band",
-            "brdf:band_names": list(composite.band_names),
-            "brdf:compositor": composite.attrs.get("compositor", "best_pixel_v2"),
-            "brdf:source_count": len(composite.source_items),
+            "surface:request_hash": request_hash,
+            "surface:schema_version": SCHEMA_VERSION,
+            "surface:prior_type": composite.attrs.get("prior_type", "brdf"),
+            "surface:asset_layout": "single-band-geotiff-per-band",
+            "surface:band_names": list(composite.band_names),
+            "surface:compositor": composite.attrs.get("compositor", "best_pixel_v2"),
+            "surface:source_count": len(composite.source_items),
         },
         "links": [],
         "assets": _band_assets(
@@ -108,11 +109,11 @@ def _prior_asset(href: str, *, band_name: str, band_index: int) -> Dict[str, Any
     return {
         "href": href,
         "type": "image/tiff; application=geotiff; profile=cloud-optimized",
-        "title": f"Scaled BRDF prior: {band_name}",
+        "title": f"Scaled surface prior: {band_name}",
         "roles": ["data"],
-        "brdf:asset_kind": "prior",
-        "brdf:band_name": band_name,
-        "brdf:band_index": band_index,
+        "surface:asset_kind": "prior",
+        "surface:band_name": band_name,
+        "surface:band_index": band_index,
         "raster:bands": [
             {
                 "name": band_name,
@@ -128,11 +129,11 @@ def _uncertainty_asset(href: str, *, band_name: str, band_index: int) -> Dict[st
     return {
         "href": href,
         "type": "image/tiff; application=geotiff; profile=cloud-optimized",
-        "title": f"Relative BRDF prior uncertainty: {band_name}",
+        "title": f"Relative surface prior uncertainty: {band_name}",
         "roles": ["metadata", "uncertainty"],
-        "brdf:asset_kind": "uncertainty",
-        "brdf:band_name": band_name,
-        "brdf:band_index": band_index,
+        "surface:asset_kind": "uncertainty",
+        "surface:band_name": band_name,
+        "surface:band_index": band_index,
         "raster:bands": [
             {
                 "name": f"{band_name}_relative_uncertainty",

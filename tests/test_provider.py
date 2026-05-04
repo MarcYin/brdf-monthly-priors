@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from brdf_monthly_priors import Provider, ProviderConfig
-from brdf_monthly_priors.sources.local import InMemorySource
-from brdf_monthly_priors.types import Observation
+from surface_priors import Provider, ProviderConfig
+from surface_priors.sources.local import InMemorySource
+from surface_priors.types import Observation
 
 
 def _observation(value, quality=0, uncertainty=10):
@@ -29,7 +29,7 @@ def test_provider_builds_and_cache_only_provider_retrieves(tmp_path):
 
     product = provider.build_prior(
         wgs84_bounds=(0, 0, 2, 2),
-        brdf_crs="EPSG:4326",
+        native_crs="EPSG:4326",
         resolution=1,
         product_id="fixture-prior",
         band_names=("iso",),
@@ -41,7 +41,7 @@ def test_provider_builds_and_cache_only_provider_retrieves(tmp_path):
     cache_only = Provider(ProviderConfig(cache_dir=tmp_path, source_name="fixture"))
     loaded = cache_only.build_prior(
         wgs84_bounds=(0, 0, 2, 2),
-        brdf_crs="EPSG:4326",
+        native_crs="EPSG:4326",
         resolution=1,
         product_id="fixture-prior",
         band_names=("iso",),
@@ -57,7 +57,7 @@ def test_provider_cache_miss_without_source_raises(tmp_path):
     with pytest.raises(RuntimeError, match="cache miss"):
         provider.build_prior(
             wgs84_bounds=(0, 0, 2, 2),
-            brdf_crs="EPSG:4326",
+            native_crs="EPSG:4326",
             resolution=1,
             product_id="missing",
             band_names=("iso",),

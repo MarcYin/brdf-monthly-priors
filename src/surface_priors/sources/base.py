@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Protocol, Sequence
 
-from brdf_monthly_priors.types import GridSpec, Observation
+from surface_priors.types import GridSpec, Observation
 
 
 class ObservationSource(Protocol):
-    """Protocol for sources that return native-grid BRDF observations."""
+    """Protocol for sources that return native-grid prior observations."""
 
     @property
     def name(self) -> str:
@@ -19,4 +19,3 @@ class ObservationSource(Protocol):
         band_names: Sequence[str],
     ) -> Sequence[Observation]:
         """Return observations already aligned to `grid`."""
-

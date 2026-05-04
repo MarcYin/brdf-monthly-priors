@@ -1,14 +1,14 @@
-"""Observation sources used by the monthly BRDF provider."""
+"""Observation sources used by surface prior providers."""
 
-from brdf_monthly_priors.sources.base import ObservationSource
-from brdf_monthly_priors.sources.gee import (
+from surface_priors.sources.base import ObservationSource
+from surface_priors.sources.gee import (
     EdownGeeSource,
     EdownSource,
     GeeEdownSource,
     GeeProductPreset,
     gee_product_preset,
 )
-from brdf_monthly_priors.sources.local import InMemorySource, LocalNpzSource
+from surface_priors.sources.local import InMemorySource, LocalNpzSource
 
 __all__ = [
     "EdownGeeSource",

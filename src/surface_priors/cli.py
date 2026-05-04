@@ -5,26 +5,26 @@ import json
 from pathlib import Path
 from typing import Optional, Sequence
 
-from brdf_monthly_priors import __version__
-from brdf_monthly_priors.persistence import stac_item_path
-from brdf_monthly_priors.provider import Provider, ProviderConfig
-from brdf_monthly_priors.sources.earthaccess import EarthaccessSource, product_collections
-from brdf_monthly_priors.sources.gee import EdownGeeSource
-from brdf_monthly_priors.sources.local import LocalNpzSource
-from brdf_monthly_priors.sources.rasterio_reader import NativeRasterioStackReader
-from brdf_monthly_priors.temporal import temporal_ranges_name
-from brdf_monthly_priors.types import DEFAULT_BANDS, DEFAULT_BRDF_CRS
+from surface_priors import __version__
+from surface_priors.persistence import stac_item_path
+from surface_priors.provider import Provider, ProviderConfig
+from surface_priors.sources.earthaccess import EarthaccessSource, product_collections
+from surface_priors.sources.gee import EdownGeeSource
+from surface_priors.sources.local import LocalNpzSource
+from surface_priors.sources.rasterio_reader import NativeRasterioStackReader
+from surface_priors.temporal import temporal_ranges_name
+from surface_priors.types import DEFAULT_BANDS, DEFAULT_NATIVE_CRS
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="brdf-monthly-priors",
-        description="Build or retrieve native-grid BRDF prior composites as STAC/GeoTIFF products.",
+        prog="surface-priors",
+        description="Build or retrieve native-grid surface prior products as STAC/GeoTIFF assets.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    build = subparsers.add_parser("build", help="Build or retrieve a BRDF prior product.")
+    build = subparsers.add_parser("build", help="Build or retrieve a surface prior product.")
     _add_request_args(build)
     build.add_argument("--cache-dir", default=None, help="Output/cache root.")
     build.add_argument("--source-name", default=None, help="Stable source/cache namespace.")
@@ -127,9 +127,11 @@ def _add_request_args(parser: argparse.ArgumentParser) -> None:
         help="Input AOI bounds in WGS84 longitude/latitude.",
     )
     parser.add_argument(
+        "--native-crs",
         "--brdf-crs",
-        default=DEFAULT_BRDF_CRS,
-        help="Native BRDF data CRS. Defaults to MODIS/VIIRS Sinusoidal.",
+        dest="native_crs",
+        default=DEFAULT_NATIVE_CRS,
+        help="Native prior data CRS. Defaults to the MODIS/VIIRS Sinusoidal CRS for BRDF sources.",
     )
     parser.add_argument("--resolution", type=float, required=True)
     parser.add_argument("--band", action="append", dest="bands", default=None, help="Band name. Repeat to override defaults.")
@@ -160,7 +162,7 @@ def _build(args: argparse.Namespace) -> int:
         wgs84_bounds=args.wgs84_bounds,
         resolution=args.resolution,
         product_id=args.product_id,
-        brdf_crs=args.brdf_crs,
+        native_crs=args.native_crs,
         band_names=band_names,
         rebuild=args.rebuild,
     )
@@ -199,7 +201,7 @@ def _provider_config(args: argparse.Namespace) -> ProviderConfig:
         output_root = (
             Path(args.edown_output_root)
             if args.edown_output_root
-            else Path(args.cache_dir or ".brdf-gee-cache") / "gee"
+            else Path(args.cache_dir or ".surface-gee-cache") / "gee"
         )
         if args.gee_product:
             source = EdownGeeSource.for_product(
@@ -240,7 +242,7 @@ def _provider_config(args: argparse.Namespace) -> ProviderConfig:
         source = EarthaccessSource(
             collections=product_collections(args.product),
             temporal_ranges=tuple(tuple(value) for value in args.temporal_range),
-            cache_dir=Path(args.cache_dir or ".brdf-earthdata-cache") / "earthdata",
+            cache_dir=Path(args.cache_dir or ".surface-earthdata-cache") / "earthdata",
             reader=NativeRasterioStackReader(
                 band_patterns=band_patterns,
                 quality_pattern=args.quality_pattern,
@@ -250,7 +252,7 @@ def _provider_config(args: argparse.Namespace) -> ProviderConfig:
             sample_every_days=args.sample_every_days,
         )
     return ProviderConfig(
-        cache_dir=args.cache_dir or Path.home() / ".cache" / "brdf-monthly-priors",
+        cache_dir=args.cache_dir or Path.home() / ".cache" / "surface-priors",
         source=source,
         source_name=getattr(args, "source_name", None),
     )
@@ -285,7 +287,7 @@ def _request_hash(provider: Provider, args: argparse.Namespace) -> str:
         wgs84_bounds=args.wgs84_bounds,
         resolution=args.resolution,
         product_id=args.product_id,
-        brdf_crs=args.brdf_crs,
+        native_crs=args.native_crs,
         band_names=tuple(args.bands or DEFAULT_BANDS),
     )
 

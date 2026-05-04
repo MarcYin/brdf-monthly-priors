@@ -10,11 +10,11 @@ from typing import Any, Mapping, Optional, Sequence
 
 import numpy as np
 
-from brdf_monthly_priors import Provider, ProviderConfig
-from brdf_monthly_priors.encoding import encode_prior, encode_relative_uncertainty
-from brdf_monthly_priors.sources import EdownGeeSource
-from brdf_monthly_priors.sources.gee import MCD43A1_QUALITY_BAND_MAP
-from brdf_monthly_priors.types import DEFAULT_BANDS, GridSpec, Observation
+from surface_priors import Provider, ProviderConfig
+from surface_priors.encoding import encode_prior, encode_relative_uncertainty
+from surface_priors.sources import EdownGeeSource
+from surface_priors.sources.gee import MCD43A1_QUALITY_BAND_MAP
+from surface_priors.types import DEFAULT_BANDS, GridSpec, Observation
 
 MCD43A1_SHORT_NAME = "MCD43A1"
 MCD43A1_VERSION = "061"
@@ -56,11 +56,11 @@ class FixedObservationSource:
         self,
         *,
         wgs84_bounds: Sequence[float],
-        brdf_crs: str,
+        native_crs: str,
         resolution: float,
         band_names: Sequence[str],
     ) -> GridSpec:
-        del wgs84_bounds, brdf_crs, resolution, band_names
+        del wgs84_bounds, native_crs, resolution, band_names
         return self.grid
 
     def load_observations(
@@ -206,7 +206,7 @@ def download_official_mcd43a1(
     except ImportError as exc:
         raise ImportError(
             "Install the experiment extra before running this experiment: "
-            "pip install 'brdf-monthly-priors[experiments]'"
+            "pip install 'surface-priors[experiments]'"
         ) from exc
 
     earthaccess.login(strategy=strategy)
@@ -294,7 +294,7 @@ def read_official_observation(
     except ImportError as exc:
         raise ImportError(
             "Official MCD43A1 granules are HDF4. Install pyhdf for this experiment: "
-            "pip install 'brdf-monthly-priors[experiments]'"
+            "pip install 'surface-priors[experiments]'"
         ) from exc
 
     window = modis_tile_window(path=path, grid=grid)
@@ -481,7 +481,7 @@ def write_figures(
     except ImportError as exc:
         raise ImportError(
             "Figure generation requires matplotlib. Install the experiment extra: "
-            "pip install 'brdf-monthly-priors[experiments]'"
+            "pip install 'surface-priors[experiments]'"
         ) from exc
 
     output_dir.mkdir(parents=True, exist_ok=True)

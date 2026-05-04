@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
-from brdf_monthly_priors.cli import main
+from surface_priors.cli import main
 
 
 def test_cli_builds_from_local_manifest(tmp_path, capsys):
@@ -33,7 +33,7 @@ def test_cli_builds_from_local_manifest(tmp_path, capsys):
             "0",
             "2",
             "2",
-            "--brdf-crs",
+            "--native-crs",
             "EPSG:4326",
             "--resolution",
             "1",

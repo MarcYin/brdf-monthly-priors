@@ -6,13 +6,13 @@ from typing import Sequence
 
 import numpy as np
 
-from brdf_monthly_priors.encoding import (
+from surface_priors.encoding import (
     DEFAULT_ENCODING,
     EncodingConfig,
     encode_prior,
     encode_relative_uncertainty,
 )
-from brdf_monthly_priors.types import GridSpec, PriorComposite
+from surface_priors.types import GridSpec, PriorComposite
 
 
 def write_prior_geotiff(
@@ -122,7 +122,7 @@ def write_tiled_geotiff(
         from rasterio.transform import Affine
     except ImportError as exc:
         raise ImportError(
-            "GeoTIFF persistence requires rasterio. Install brdf-monthly-priors with its default dependencies."
+            "GeoTIFF persistence requires rasterio. Install surface-priors with its default dependencies."
         ) from exc
 
     destination = Path(path).expanduser().resolve()

@@ -5,13 +5,13 @@ from typing import Sequence
 
 import numpy as np
 
-from brdf_monthly_priors.quality import QualityRules, score_pixels, valid_pixel_mask
-from brdf_monthly_priors.types import GridSpec, Observation, PriorComposite
+from surface_priors.quality import QualityRules, score_pixels, valid_pixel_mask
+from surface_priors.types import GridSpec, Observation, PriorComposite
 
 
 @dataclass(frozen=True)
 class PriorCompositor:
-    """Build a best-pixel BRDF prior from native-grid observations."""
+    """Build a best-pixel surface prior from native-grid observations."""
 
     quality_rules: QualityRules = field(default_factory=QualityRules)
     output_dtype: str = "float32"
@@ -158,4 +158,3 @@ def relative_uncertainty_from_stack(
     with np.errstate(divide="ignore", invalid="ignore"):
         uncertainty = (std / denominator) * 100.0
     return np.where(np.isfinite(reference) & (denominator > 0), uncertainty, np.nan).astype("float32")
-

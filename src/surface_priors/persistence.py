@@ -8,11 +8,11 @@ from typing import Any, Mapping, Optional, Union
 
 import numpy as np
 
-from brdf_monthly_priors._version import __version__
-from brdf_monthly_priors.encoding import decode_prior, decode_relative_uncertainty
-from brdf_monthly_priors.geotiff import write_prior_band_geotiff, write_uncertainty_band_geotiff
-from brdf_monthly_priors.stac import asset_stem, build_stac_item, normalize_href
-from brdf_monthly_priors.types import (
+from surface_priors._version import __version__
+from surface_priors.encoding import decode_prior, decode_relative_uncertainty
+from surface_priors.geotiff import write_prior_band_geotiff, write_uncertainty_band_geotiff
+from surface_priors.stac import asset_stem, build_stac_item, normalize_href
+from surface_priors.types import (
     DEFAULT_PRIOR_NODATA,
     SCHEMA_VERSION,
     GridSpec,
@@ -30,7 +30,7 @@ def stable_json_hash(payload: Mapping[str, Any]) -> str:
 
 
 class CompositeStore:
-    """File-system store for STAC Item BRDF prior products."""
+    """File-system store for STAC Item surface prior products."""
 
     def __init__(self, root: Union[str, Path]):
         self.root = Path(root).expanduser().resolve()
@@ -47,7 +47,7 @@ class CompositeStore:
                 stac_item = json.load(handle)
         except (OSError, json.JSONDecodeError):
             return False
-        return stac_item.get("properties", {}).get("brdf:schema_version") == SCHEMA_VERSION
+        return stac_item.get("properties", {}).get("surface:schema_version") == SCHEMA_VERSION
 
     def save(
         self,
@@ -88,10 +88,10 @@ class CompositeStore:
             uncertainty_hrefs=uncertainty_hrefs,
             created_at=created_at,
         )
-        stac_item["properties"]["brdf:schema_version"] = SCHEMA_VERSION
-        stac_item["properties"]["brdf:package_version"] = __version__
-        stac_item["properties"]["brdf:source_items"] = list(composite.source_items)
-        stac_item["properties"]["brdf:attrs"] = dict(composite.attrs)
+        stac_item["properties"]["surface:schema_version"] = SCHEMA_VERSION
+        stac_item["properties"]["surface:package_version"] = __version__
+        stac_item["properties"]["surface:source_items"] = list(composite.source_items)
+        stac_item["properties"]["surface:attrs"] = dict(composite.attrs)
         with (destination / STAC_ITEM_NAME).open("w", encoding="utf-8") as handle:
             json.dump(stac_item, handle, indent=2, sort_keys=True)
             handle.write("\n")
@@ -122,15 +122,15 @@ def load_product(path: Union[str, Path], request: Optional[Mapping[str, Any]] = 
     source = Path(path).expanduser().resolve()
     with (source / STAC_ITEM_NAME).open("r", encoding="utf-8") as handle:
         stac_item = json.load(handle)
-    if stac_item["properties"].get("brdf:schema_version") != SCHEMA_VERSION:
+    if stac_item["properties"].get("surface:schema_version") != SCHEMA_VERSION:
         raise ValueError(
             "unsupported schema version "
-            f"{stac_item['properties'].get('brdf:schema_version')!r}; expected {SCHEMA_VERSION!r}"
+            f"{stac_item['properties'].get('surface:schema_version')!r}; expected {SCHEMA_VERSION!r}"
         )
 
-    band_names = tuple(str(name) for name in stac_item["properties"].get("brdf:band_names", ()))
+    band_names = tuple(str(name) for name in stac_item["properties"].get("surface:band_names", ()))
     if not band_names:
-        raise ValueError("STAC item does not declare brdf:band_names")
+        raise ValueError("STAC item does not declare surface:band_names")
 
     prior_encoded, grid = _read_single_band_stack(
         rasterio,
@@ -162,18 +162,18 @@ def load_product(path: Union[str, Path], request: Optional[Mapping[str, Any]] = 
         sample_index=np.full(shape, -1, dtype="int16"),
         selected_observation=np.full(shape, -1, dtype="int16"),
         observation_count=np.zeros(shape, dtype="uint16"),
-        source_items=stac_item["properties"].get("brdf:source_items", ()),
-        attrs=stac_item["properties"].get("brdf:attrs", {}),
+        source_items=stac_item["properties"].get("surface:source_items", ()),
+        attrs=stac_item["properties"].get("surface:attrs", {}),
     )
     request_payload = {} if request is None else dict(request)
-    request_payload.setdefault("request_hash", stac_item["properties"]["brdf:request_hash"])
+    request_payload.setdefault("request_hash", stac_item["properties"]["surface:request_hash"])
     return PriorProduct(
         request=request_payload,
         grid=grid,
         composite=composite,
         stac_item=stac_item,
         output_dir=str(source),
-        package_version=stac_item["properties"].get("brdf:package_version", "unknown"),
+        package_version=stac_item["properties"].get("surface:package_version", "unknown"),
     )
 
 
@@ -193,7 +193,7 @@ def _read_single_band_stack(
         with rasterio_module.open(_asset_href(source, href)) as dataset:
             if dataset.count != 1:
                 raise ValueError(f"{href} contains {dataset.count} bands; expected one")
-            asset_band_name = asset.get("brdf:band_name")
+            asset_band_name = asset.get("surface:band_name")
             if asset_band_name != band_names[band_index]:
                 raise ValueError(
                     f"{href} declares band {asset_band_name!r}; expected {band_names[band_index]!r}"
@@ -226,13 +226,13 @@ def _ordered_band_assets(
 ) -> list[Mapping[str, Any]]:
     assets_by_index: dict[int, Mapping[str, Any]] = {}
     for asset in stac_item.get("assets", {}).values():
-        if asset.get("brdf:asset_kind") != kind:
+        if asset.get("surface:asset_kind") != kind:
             continue
-        band_index = asset.get("brdf:band_index")
+        band_index = asset.get("surface:band_index")
         if not isinstance(band_index, int) or band_index < 0 or band_index >= band_count:
-            raise ValueError(f"{kind} asset has invalid brdf:band_index {band_index!r}")
+            raise ValueError(f"{kind} asset has invalid surface:band_index {band_index!r}")
         if band_index in assets_by_index:
-            raise ValueError(f"duplicate {kind} asset for brdf:band_index {band_index}")
+            raise ValueError(f"duplicate {kind} asset for surface:band_index {band_index}")
         assets_by_index[band_index] = asset
     missing = [index for index in range(band_count) if index not in assets_by_index]
     if missing:

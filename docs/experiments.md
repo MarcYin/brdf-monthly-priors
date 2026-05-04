@@ -12,7 +12,7 @@ Both paths use the same AOI, date window, band set, best-pixel compositor, outpu
 ### Install
 
 ```bash
-pip install "brdf-monthly-priors[experiments]"
+pip install "surface-priors[experiments]"
 ```
 
 The `experiments` extra installs `edown`, `earthaccess`, and `pyhdf`. The

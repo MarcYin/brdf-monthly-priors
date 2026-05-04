@@ -5,8 +5,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Mapping, Optional, Protocol, Sequence, Tuple, Union
 
-from brdf_monthly_priors.temporal import sample_temporal_ranges, temporal_ranges_name
-from brdf_monthly_priors.types import GridSpec, Observation
+from surface_priors.temporal import sample_temporal_ranges, temporal_ranges_name
+from surface_priors.types import GridSpec, Observation
 
 
 @dataclass(frozen=True)
@@ -104,7 +104,7 @@ class EarthaccessSource:
         except ImportError as exc:
             raise ImportError(
                 "EarthaccessSource requires the 'earthdata' extra: "
-                "pip install 'brdf-monthly-priors[earthdata]'"
+                "pip install 'surface-priors[earthdata]'"
             ) from exc
 
         earthaccess.login(strategy=self.login_strategy)
