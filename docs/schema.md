@@ -1,31 +1,49 @@
-# Persistence Schema
+# STAC And GeoTIFF Schema
 
 The store layout is:
 
 ```text
 <cache-root>/
   <request-hash>/
-    manifest.json
-    composites/
-      2025-06.npz
-      2025-07.npz
-      2025-08.npz
+    stac-item.json
+    assets/
+      prior.tif
+      uncertainty.tif
 ```
 
-`manifest.json` is the package-neutral contract. It contains:
+## Prior Asset
 
-- `schema_version`: currently `brdf-monthly-priors/v1`.
-- `package_version`: package version that wrote the store.
-- `request`: AOI, CRS, resolution, observation date, month window, history years, band names, and source namespace.
-- `grid`: bounds, CRS, resolution, shape, and affine transform tuple.
-- `composites`: per-month metadata and relative array path.
+`assets/prior.tif` is a tiled, DEFLATE-compressed GeoTIFF with no overviews.
 
-Each `.npz` file contains:
+- Data type: `uint16`
+- Scale factor: `10000`
+- Stored value: `round(prior * 10000)`
+- Nodata: `65535`
+- Bands: one band per BRDF prior band
 
-- `data`: float array with shape `(bands, height, width)`.
-- `quality`: selected source quality value per pixel.
-- `sample_index`: selected source sample index per pixel, or `-1`.
-- `selected_observation`: zero-based source observation index, or `-1`.
-- `observation_count`: number of usable observations seen per pixel.
+## Uncertainty Asset
 
-Consumers should treat the JSON manifest as the stable schema and the NPZ files as array payloads referenced by that manifest.
+`assets/uncertainty.tif` is a tiled, DEFLATE-compressed GeoTIFF with no overviews.
+
+- Data type: `uint8`
+- Unit: percent relative uncertainty
+- Valid range: `0` to `200`
+- Suspicious or missing value: `255`
+- Bands: one uncertainty band per prior band
+
+## STAC Item
+
+`stac-item.json` uses STAC `1.0.0` plus the projection and raster extensions.
+
+Important fields:
+
+- `assets.prior.href`: relative path to `assets/prior.tif`
+- `assets.uncertainty.href`: relative path to `assets/uncertainty.tif`
+- `proj:wkt2`: native CRS
+- `proj:shape`: raster shape
+- `proj:transform`: affine transform
+- `proj:bbox`: native-projection bounds
+- `bbox` and `geometry`: WGS84 metadata when `pyproj` can derive it
+
+The STAC Item is the package-neutral output contract.
+

@@ -1,5 +1,5 @@
 site_name: BRDF Monthly Priors
-site_description: Schema-versioned monthly BRDF prior composites for SIAC and other remote-sensing pipelines.
+site_description: Native-grid BRDF prior composites persisted as STAC/GeoTIFF products.
 site_url: https://MarcYin.github.io/brdf-monthly-priors/
 repo_url: https://github.com/MarcYin/brdf-monthly-priors
 repo_name: MarcYin/brdf-monthly-priors
@@ -19,7 +19,7 @@ nav:
   - Quickstart: quickstart.md
   - Provider API: api.md
   - CLI: cli.md
-  - Persistence Schema: schema.md
+  - STAC/GeoTIFF Schema: schema.md
   - SIAC Integration: siac-integration.md
 plugins:
   - search

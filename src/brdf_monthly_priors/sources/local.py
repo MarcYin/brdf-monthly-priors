@@ -2,22 +2,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 from typing import Any, Mapping, Sequence, Union
 
 import numpy as np
 
-from brdf_monthly_priors.periods import MonthlyPeriod
-from brdf_monthly_priors.types import GridSpec, Observation, parse_date
-
-
-def _same_year_month(left: date, right: date) -> bool:
-    return left.year == right.year and left.month == right.month
-
-
-def _in_period(acquired: date, period: MonthlyPeriod) -> bool:
-    return any(_same_year_month(acquired, month) for month in period.history_months)
+from brdf_monthly_priors.types import GridSpec, Observation
 
 
 @dataclass(frozen=True)
@@ -30,39 +20,29 @@ class InMemorySource:
     def load_observations(
         self,
         *,
-        period: MonthlyPeriod,
         grid: GridSpec,
         band_names: Sequence[str],
     ) -> Sequence[Observation]:
-        del grid
         requested_bands = tuple(str(band) for band in band_names)
-        return tuple(
-            observation
-            for observation in self.observations
-            if tuple(observation.band_names) == requested_bands and _in_period(observation.acquired, period)
-        )
+        observations = []
+        for observation in self.observations:
+            if tuple(observation.band_names) != requested_bands:
+                continue
+            if observation.data.shape[1:] != grid.shape:
+                raise ValueError(
+                    f"observation {observation.source_id!r} has shape {observation.data.shape[1:]}, "
+                    f"expected {grid.shape}"
+                )
+            observations.append(observation)
+        return tuple(observations)
 
 
 class LocalNpzSource:
-    """Read observations from a JSON manifest pointing at local NPZ files.
+    """Read native-grid observations from a JSON manifest pointing at local NPZ files.
 
-    Manifest example:
-
-    ```json
-    {
-      "name": "fixture",
-      "band_names": ["iso", "vol", "geo"],
-      "items": [
-        {
-          "date": "2024-07-15",
-          "path": "obs-2024-07.npz",
-          "data_key": "data",
-          "quality_key": "quality",
-          "sample_index_key": "sample_index"
-        }
-      ]
-    }
-    ```
+    The source reads all manifest items. Temporal filtering belongs to the
+    calling application, which can write a manifest for the exact observations
+    that should enter one prior composite.
     """
 
     def __init__(self, manifest_path: Union[str, Path]):
@@ -79,7 +59,6 @@ class LocalNpzSource:
     def load_observations(
         self,
         *,
-        period: MonthlyPeriod,
         grid: GridSpec,
         band_names: Sequence[str],
     ) -> Sequence[Observation]:
@@ -91,10 +70,7 @@ class LocalNpzSource:
                 f"local observation manifest bands {manifest_bands!r} do not match requested bands {requested_bands!r}"
             )
         for item in self._manifest.get("items", []):
-            acquired = parse_date(item["date"])
-            if not _in_period(acquired, period):
-                continue
-            observation = self._read_item(item, acquired=acquired, band_names=requested_bands)
+            observation = self._read_item(item, band_names=requested_bands)
             if observation.data.shape[1:] != grid.shape:
                 raise ValueError(
                     f"local observation {observation.source_id!r} has shape {observation.data.shape[1:]}, "
@@ -107,7 +83,6 @@ class LocalNpzSource:
         self,
         item: Mapping[str, Any],
         *,
-        acquired: date,
         band_names: Sequence[str],
     ) -> Observation:
         path = Path(item["path"])
@@ -116,16 +91,21 @@ class LocalNpzSource:
         data_key = str(item.get("data_key", "data"))
         quality_key = str(item.get("quality_key", "quality"))
         sample_index_key = item.get("sample_index_key", "sample_index")
+        uncertainty_key = item.get("uncertainty_key", "uncertainty")
         with np.load(path) as arrays:
             sample_index = None
             if sample_index_key in arrays.files:
                 sample_index = arrays[sample_index_key]
+            uncertainty = None
+            if uncertainty_key in arrays.files:
+                uncertainty = arrays[uncertainty_key]
             return Observation(
-                acquired=acquired,
                 data=arrays[data_key],
                 quality=arrays[quality_key],
+                uncertainty=uncertainty,
                 sample_index=sample_index,
                 band_names=band_names,
                 source_id=str(item.get("source_id", path.name)),
                 metadata={"path": str(path), **dict(item.get("metadata", {}))},
             )
+

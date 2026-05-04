@@ -1,43 +1,66 @@
 # BRDF Monthly Priors
 
-`brdf-monthly-priors` builds schema-versioned monthly BRDF prior composites for a target AOI, CRS, resolution, and observation date. It is designed so SIAC can keep atmospheric correction, SWIR refinement, sensor spectral mapping, and `SurfacePrior` validation while delegating monthly BRDF composite fetch/build/cache behavior to this package.
+`brdf-monthly-priors` builds native-grid BRDF prior composites and persists them as a STAC Item with tiled, DEFLATE-compressed GeoTIFF assets. Despite the package name, calendar planning is intentionally outside the core builder: callers decide which observations should enter a prior, then this package composites those observations and writes a consistent product.
 
 ```python
-from datetime import date
+import numpy as np
 
-from brdf_monthly_priors import Provider, ProviderConfig
+from brdf_monthly_priors import Observation, Provider, ProviderConfig
+from brdf_monthly_priors.sources import InMemorySource
 
-provider = Provider(ProviderConfig(cache_dir=".brdf-cache"))
-collection = provider.get_monthly_composites(
-    bounds=(500000.0, 5700000.0, 501000.0, 5701000.0),
-    crs="EPSG:32631",
-    observation_date=date(2025, 7, 12),
+obs = Observation(
+    data=np.ones((1, 2, 2), dtype="float32") * 0.25,
+    quality=np.zeros((2, 2), dtype="uint16"),
+    uncertainty=np.ones((1, 2, 2), dtype="float32") * 12,
+    band_names=("brdf_iso_red",),
+)
+
+provider = Provider(
+    ProviderConfig(
+        cache_dir=".brdf-cache",
+        source=InMemorySource((obs,), name="example"),
+    )
+)
+
+product = provider.build_prior(
+    product_id="example-brdf-prior",
+    bounds=(-20015109.354, 10007554.677, -20014609.354, 10007054.677),
+    crs="+proj=sinu +R=6371007.181 +nadgrids=@null +wktext",
     resolution=500.0,
-    months_window=(-1, 0, 1),
-    history_years=5,
+    band_names=("brdf_iso_red",),
 )
 ```
 
-The returned `MonthlyCompositeCollection` is package-neutral. It exposes NumPy-backed monthly composites plus a JSON manifest schema that SIAC or any other consumer can adapt into its own internal classes.
+The output directory contains:
 
-## Scope
+```text
+<cache-root>/<request-hash>/
+  stac-item.json
+  assets/
+    prior.tif
+    uncertainty.tif
+```
+
+## Contract
 
 This package owns:
 
-- BRDF product fetching hooks for MCD43/VNP43/MCD19-style Earthaccess sources.
-- Monthly period planning for target, adjacent, and historical months.
-- Monthly best-pixel compositing.
+- Native-grid best-pixel compositing from caller-supplied BRDF observations.
 - BRDF quality and sample-index tie-breaking.
-- Composite persistence and manifest generation.
-- A Python API and CLI for build/retrieve workflows.
+- Relative uncertainty propagation or fallback estimation.
+- `uint16` prior encoding with scale factor `10000` and nodata `65535`.
+- `uint8` relative uncertainty encoding in percent from `0` to `200`; values above `200%`, negative values, and non-finite values are stored as `255`.
+- Tiled, DEFLATE-compressed GeoTIFF persistence optimized for remote chunked reads, without overviews.
+- STAC Item creation with `projection` and `raster` extension metadata.
 
-SIAC should keep:
+Callers own:
 
-- Atmospheric correction.
-- SWIR refine query logic that uses the target scene.
-- Spectral mapping into the target-sensor basis.
-- `SurfacePrior` construction and validation.
-- A narrow adapter from this package's neutral collection schema to SIAC internals.
+- Which observations to use for a prior.
+- Any observation-day, month, season, or year logic.
+- NASA/Earthdata search policy and temporal filtering.
+- SIAC atmospheric correction, SWIR refine routing, spectral mapping, and `SurfacePrior` construction.
+
+The builder does not reproject internally. MODIS/VIIRS Sinusoidal inputs should be passed through on their native grid and CRS.
 
 ## Installation
 
@@ -45,10 +68,10 @@ SIAC should keep:
 pip install brdf-monthly-priors
 ```
 
-Optional Earthdata and raster IO support:
+Optional Earthdata search support:
 
 ```bash
-pip install "brdf-monthly-priors[earthdata,raster]"
+pip install "brdf-monthly-priors[earthdata]"
 ```
 
 Development install:
@@ -60,34 +83,36 @@ pytest
 
 ## CLI
 
-Retrieve from cache or build through a configured source:
-
 ```bash
 brdf-monthly-priors build \
-  --bounds 500000 5700000 501000 5701000 \
-  --crs EPSG:32631 \
-  --observation-date 2025-07-12 \
+  --product-id example-brdf-prior \
+  --bounds -20015109.354 10007054.677 -20014609.354 10007554.677 \
+  --crs "+proj=sinu +R=6371007.181 +nadgrids=@null +wktext" \
   --resolution 500 \
-  --history-years 5 \
-  --months-window -1 0 1 \
+  --band brdf_iso_red \
+  --local-observations observations.json \
   --cache-dir .brdf-cache
 ```
 
-For offline tests and local processing, pass a local observation manifest:
+`observations.json` points to local native-grid NPZ observations used as input, not as output:
 
-```bash
-brdf-monthly-priors build \
-  --bounds 0 0 1000 1000 \
-  --crs EPSG:32631 \
-  --observation-date 2025-07-12 \
-  --resolution 500 \
-  --local-observations examples/observations.json \
-  --cache-dir .brdf-cache
+```json
+{
+  "name": "example",
+  "band_names": ["brdf_iso_red"],
+  "items": [
+    {
+      "path": "obs.npz",
+      "data_key": "data",
+      "quality_key": "quality",
+      "uncertainty_key": "uncertainty",
+      "sample_index_key": "sample_index"
+    }
+  ]
+}
 ```
 
 ## Publishing
 
 The repository includes GitHub Actions workflows for tests, package build checks, PyPI trusted publishing on GitHub releases, and MkDocs Material deployment to GitHub Pages.
-
-Actual PyPI publication and GitHub Pages deployment require a GitHub repository with Pages enabled and a PyPI trusted publisher configured for the release workflow.
 

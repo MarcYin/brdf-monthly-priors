@@ -1,35 +1,34 @@
 # BRDF Monthly Priors
 
-`brdf-monthly-priors` builds monthly best-pixel BRDF prior composites for a target AOI, CRS, resolution, and observation date.
+`brdf-monthly-priors` builds native-grid BRDF prior composites and writes them as STAC/GeoTIFF products.
 
 The package boundary is intentionally narrow:
 
-- Fetch or read MCD43/VNP43/MCD19-style BRDF observations.
-- Plan target, adjacent, and historical months.
-- Composite the best pixel per BRDF band using quality, temporal distance, and sample-index tie-breaks.
-- Persist a schema-versioned collection with a JSON manifest and NumPy arrays.
-- Return a package-neutral object that downstream systems can adapt.
+- Accept observations that are already on the native MODIS/VIIRS grid, usually Sinusoidal.
+- Composite the best pixel per BRDF band using quality and sample-index tie-breaks.
+- Encode the prior as `uint16` with scale factor `10000`.
+- Encode relative uncertainty as `uint8` percent from `0` to `200`, with `255` marking suspicious or missing uncertainty.
+- Persist tiled, DEFLATE-compressed GeoTIFF assets with no overviews.
+- Emit a STAC Item that points to those assets.
 
-SIAC should keep atmospheric correction, SWIR refinement, spectral mapping into the target sensor basis, and `SurfacePrior` construction.
+Calendar planning is not part of the builder. Target dates, adjacent months, seasons, and history years are usage policy owned by SIAC or another caller.
 
 ## Contract
 
 ```python
-from datetime import date
-
 from brdf_monthly_priors import Provider, ProviderConfig
+from brdf_monthly_priors.sources import InMemorySource
 
-provider = Provider(ProviderConfig(cache_dir=".brdf-cache"))
+provider = Provider(ProviderConfig(cache_dir=".brdf-cache", source=source))
 
-collection = provider.get_monthly_composites(
-    bounds=(500000.0, 5700000.0, 501000.0, 5701000.0),
-    crs="EPSG:32631",
-    observation_date=date(2025, 7, 12),
+product = provider.build_prior(
+    product_id="example-brdf-prior",
+    bounds=(-20015109.354, 10007054.677, -20014609.354, 10007554.677),
+    crs="+proj=sinu +R=6371007.181 +nadgrids=@null +wktext",
     resolution=500.0,
-    months_window=(-1, 0, 1),
-    history_years=5,
+    band_names=("brdf_iso_red",),
 )
 ```
 
-The collection contains one `MonthlyComposite` per requested month and a stable manifest that does not expose SIAC internals.
+The returned `PriorProduct` contains the in-memory composite, output directory, and STAC Item dictionary.
 

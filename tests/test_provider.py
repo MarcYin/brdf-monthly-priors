@@ -1,5 +1,3 @@
-from datetime import date
-
 import numpy as np
 import pytest
 
@@ -8,64 +6,60 @@ from brdf_monthly_priors.sources.local import InMemorySource
 from brdf_monthly_priors.types import Observation
 
 
-def _observation(acquired, value, quality=0):
+def _observation(value, quality=0, uncertainty=10):
     return Observation(
-        acquired=acquired,
         data=np.full((1, 2, 2), value, dtype="float32"),
         quality=np.full((2, 2), quality, dtype="uint16"),
+        uncertainty=np.full((1, 2, 2), uncertainty, dtype="float32"),
         sample_index=np.zeros((2, 2), dtype="int16"),
         band_names=("iso",),
-        source_id=f"obs-{acquired}",
+        source_id=f"obs-{value}",
     )
 
 
 def test_provider_builds_and_cache_only_provider_retrieves(tmp_path):
     source = InMemorySource(
         observations=(
-            _observation(date(2024, 7, 15), 10, quality=1),
-            _observation(date(2025, 7, 12), 20, quality=0),
+            _observation(0.1, quality=1),
+            _observation(0.2, quality=0),
         ),
         name="fixture",
     )
     provider = Provider(ProviderConfig(cache_dir=tmp_path, source=source))
 
-    collection = provider.get_monthly_composites(
+    product = provider.build_prior(
         bounds=(0, 0, 2, 2),
-        crs="EPSG:32631",
-        observation_date=date(2025, 7, 12),
+        crs="EPSG:4326",
         resolution=1,
-        months_window=(0,),
-        history_years=2,
+        product_id="fixture-prior",
         band_names=("iso",),
     )
 
-    assert collection.composite_for_month("2025-07").data[0, 0, 0] == 20
+    assert product.composite.data[0, 0, 0] == np.float32(0.2)
+    assert (tmp_path / product.request["request_hash"] / "stac-item.json").exists()
 
     cache_only = Provider(ProviderConfig(cache_dir=tmp_path, source_name="fixture"))
-    loaded = cache_only.get_monthly_composites(
+    loaded = cache_only.build_prior(
         bounds=(0, 0, 2, 2),
-        crs="EPSG:32631",
-        observation_date="2025-07-12",
+        crs="EPSG:4326",
         resolution=1,
-        months_window=(0,),
-        history_years=2,
+        product_id="fixture-prior",
         band_names=("iso",),
     )
 
-    assert loaded.composite_for_month("2025-07").data[0, 0, 0] == 20
+    assert loaded.stac_item["id"] == "fixture-prior"
+    assert loaded.composite.data[0, 0, 0] == np.float32(0.2)
 
 
 def test_provider_cache_miss_without_source_raises(tmp_path):
     provider = Provider(ProviderConfig(cache_dir=tmp_path, source_name="fixture"))
 
     with pytest.raises(RuntimeError, match="cache miss"):
-        provider.get_monthly_composites(
+        provider.build_prior(
             bounds=(0, 0, 2, 2),
-            crs="EPSG:32631",
-            observation_date="2025-07-12",
+            crs="EPSG:4326",
             resolution=1,
-            months_window=(0,),
-            history_years=2,
+            product_id="missing",
             band_names=("iso",),
         )
 

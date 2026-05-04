@@ -5,7 +5,6 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Mapping, Optional, Protocol, Sequence, Tuple, Union
 
-from brdf_monthly_priors.periods import MonthlyPeriod
 from brdf_monthly_priors.types import GridSpec, Observation
 
 
@@ -24,27 +23,31 @@ class FetchedGranule:
 
     path: Path
     collection: EarthdataCollection
-    acquired: Optional[date] = None
     granule_id: str = ""
+    acquired: Optional[date] = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
 class ProductReader(Protocol):
-    """Reads downloaded granules into grid-aligned observations."""
+    """Reads downloaded native-projection granules into observations."""
 
     def read(
         self,
         *,
         granules: Sequence[FetchedGranule],
-        period: MonthlyPeriod,
         grid: GridSpec,
         band_names: Sequence[str],
     ) -> Sequence[Observation]:
-        """Return observations from downloaded product files."""
+        """Return observations without internal reprojection."""
 
 
 class EarthaccessSource:
-    """Fetch/cache NASA Earthdata BRDF products with lazy Earthaccess imports."""
+    """Fetch/cache NASA Earthdata BRDF products with lazy Earthaccess imports.
+
+    Temporal or product-selection policy is caller-owned. If Earthaccess fetching
+    is used, pass explicit `temporal_ranges` that were planned by the calling
+    application.
+    """
 
     def __init__(
         self,
@@ -52,14 +55,18 @@ class EarthaccessSource:
         collections: Sequence[EarthdataCollection],
         cache_dir: Union[str, Path],
         reader: ProductReader,
+        temporal_ranges: Sequence[Tuple[str, str]],
         name: str = "earthaccess",
         login_strategy: str = "netrc",
     ):
         if not collections:
             raise ValueError("at least one EarthdataCollection is required")
+        if not temporal_ranges:
+            raise ValueError("EarthaccessSource requires explicit temporal_ranges supplied by the caller")
         self.collections = tuple(collections)
         self.cache_dir = Path(cache_dir).expanduser().resolve()
         self.reader = reader
+        self.temporal_ranges = tuple((str(start), str(end)) for start, end in temporal_ranges)
         self._name = name
         self.login_strategy = login_strategy
 
@@ -70,19 +77,13 @@ class EarthaccessSource:
     def load_observations(
         self,
         *,
-        period: MonthlyPeriod,
         grid: GridSpec,
         band_names: Sequence[str],
     ) -> Sequence[Observation]:
-        granules = self.fetch(period=period, grid=grid)
-        return self.reader.read(
-            granules=granules,
-            period=period,
-            grid=grid,
-            band_names=band_names,
-        )
+        granules = self.fetch(grid=grid)
+        return self.reader.read(granules=granules, grid=grid, band_names=band_names)
 
-    def fetch(self, *, period: MonthlyPeriod, grid: GridSpec) -> Sequence[FetchedGranule]:
+    def fetch(self, *, grid: GridSpec) -> Sequence[FetchedGranule]:
         try:
             import earthaccess
         except ImportError as exc:
@@ -97,13 +98,13 @@ class EarthaccessSource:
         for collection in self.collections:
             collection_dir = self.cache_dir / collection.short_name
             collection_dir.mkdir(parents=True, exist_ok=True)
-            for start, end in period.temporal_ranges:
+            for start, end in self.temporal_ranges:
                 results = earthaccess.search_data(
                     short_name=collection.short_name,
                     version=collection.version,
                     provider=collection.provider,
                     bounding_box=bbox,
-                    temporal=(start.isoformat(), end.isoformat()),
+                    temporal=(start, end),
                 )
                 paths = earthaccess.download(results, local_path=str(collection_dir))
                 for result, path in zip(results, paths):
@@ -113,7 +114,7 @@ class EarthaccessSource:
                             collection=collection,
                             acquired=_date_from_result(result),
                             granule_id=_granule_id(result),
-                            metadata={"temporal_start": start.isoformat(), "temporal_end": end.isoformat()},
+                            metadata={"temporal_start": start, "temporal_end": end},
                         )
                     )
         return tuple(fetched)
@@ -128,9 +129,7 @@ def _bounds_to_wgs84(
     try:
         from pyproj import Transformer
     except ImportError as exc:
-        raise ImportError(
-            "Non-WGS84 Earthdata searches require pyproj. Install the 'earthdata' extra."
-        ) from exc
+        raise ImportError("Non-WGS84 Earthdata searches require pyproj.") from exc
     transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
     return transformer.transform_bounds(*bounds, densify_pts=21)
 
@@ -172,7 +171,6 @@ def product_collections(product: str) -> Tuple[EarthdataCollection, ...]:
             EarthdataCollection("VNP43IA2", version="001"),
         )
     if normalized == "mcd19":
-        return (
-            EarthdataCollection("MCD19A3", version="061"),
-        )
+        return (EarthdataCollection("MCD19A3", version="061"),)
     raise ValueError("product must be one of: mcd43, vnp43, mcd19")
+

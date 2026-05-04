@@ -4,22 +4,25 @@ The intended SIAC boundary is:
 
 ```text
 SIAC target scene
-  -> SWIR refine query remains in SIAC
-  -> Provider.get_monthly_composites(...)
-  -> SIAC MonthlyCompositeProvider adapter
+  -> SIAC decides which prior observations are relevant
+  -> Provider.build_prior(...)
+  -> STAC Item + tiled GeoTIFF assets
+  -> SIAC reads/scales prior and uncertainty assets
   -> SIAC spectral mapping into target sensor basis
   -> SurfacePrior construction and validation
 ```
 
-The adapter should convert the neutral `MonthlyCompositeCollection` into SIAC's internal `MonthlyCompositeCollection` equivalent. It should not require this package to import SIAC classes.
+The package does not know about observation dates, target months, adjacent months, or history years. Those are SIAC usage policy.
 
 Recommended adapter responsibilities:
 
-- Pass target AOI bounds, CRS, resolution, observation date, month window, and history years.
-- Select or configure the source namespace used for cache keys.
-- Validate `schema_version` before adapting.
-- Map neutral band names to SIAC's internal BRDF band identifiers.
+- Select the BRDF observations to composite.
+- Keep observations on their native MODIS/VIIRS projection and grid.
+- Pass native bounds, CRS, resolution, product id, and band names to `Provider.build_prior`.
+- Validate `brdf:schema_version` on the returned STAC Item.
+- Read `prior.tif` as `uint16` and apply scale `0.0001`.
+- Read `uncertainty.tif` as relative percent uncertainty; treat `255` as suspicious/missing.
 - Keep target-sensor spectral response mapping in SIAC.
 
-Start by moving only fetch/build/provide monthly composites. Keep the SWIR refine route in SIAC until the new package contract is stable in production.
+Start by moving only fetch/build/provide prior composites. Keep SWIR refine and target-scene-specific logic in SIAC.
 
