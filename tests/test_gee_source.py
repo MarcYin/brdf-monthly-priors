@@ -16,7 +16,10 @@ def test_gee_product_preset_maps_default_brdf_bands():
 
     assert preset.collection_id == "MODIS/061/MCD43A1"
     assert preset.band_map["brdf_iso_red"] == "BRDF_Albedo_Parameters_Band1_iso"
+    assert preset.band_map["brdf_iso_green"] == "BRDF_Albedo_Parameters_Band4_iso"
+    assert preset.band_map["brdf_iso_blue"] == "BRDF_Albedo_Parameters_Band3_iso"
     assert preset.quality_band_map["brdf_iso_red"] == "BRDF_Albedo_Band_Mandatory_Quality_Band1"
+    assert preset.quality_band_map["brdf_iso_swir2"] == "BRDF_Albedo_Band_Mandatory_Quality_Band7"
     assert preset.scale_map["BRDF_Albedo_Parameters_Band1_iso"] == 0.001
 
 

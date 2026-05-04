@@ -20,7 +20,7 @@ pip install "brdf-monthly-priors[gee]"
 
 ## Build From Google Earth Engine
 
-`EdownGeeSource` downloads native-grid GeoTIFF observations with `edown`, then passes those observations to the same prior compositor. The built-in `mcd43a1` preset maps the default BRDF kernel bands to `MODIS/061/MCD43A1`.
+`EdownGeeSource` downloads native-grid GeoTIFF observations with `edown`, then passes those observations to the same prior compositor. The built-in `mcd43a1` preset maps the default BRDF kernel bands to `MODIS/061/MCD43A1`: red, green, blue, NIR, SWIR1, and SWIR2, each with `iso`, `vol`, and `geo` coefficients.
 
 ```python
 from brdf_monthly_priors import Provider, ProviderConfig

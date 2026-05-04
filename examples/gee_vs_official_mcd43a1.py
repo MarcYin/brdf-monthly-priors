@@ -28,12 +28,21 @@ OFFICIAL_DATASETS: Mapping[str, tuple[str, int]] = {
     "brdf_iso_red": ("BRDF_Albedo_Parameters_Band1", 1),
     "brdf_vol_red": ("BRDF_Albedo_Parameters_Band1", 2),
     "brdf_geo_red": ("BRDF_Albedo_Parameters_Band1", 3),
+    "brdf_iso_green": ("BRDF_Albedo_Parameters_Band4", 1),
+    "brdf_vol_green": ("BRDF_Albedo_Parameters_Band4", 2),
+    "brdf_geo_green": ("BRDF_Albedo_Parameters_Band4", 3),
+    "brdf_iso_blue": ("BRDF_Albedo_Parameters_Band3", 1),
+    "brdf_vol_blue": ("BRDF_Albedo_Parameters_Band3", 2),
+    "brdf_geo_blue": ("BRDF_Albedo_Parameters_Band3", 3),
     "brdf_iso_nir": ("BRDF_Albedo_Parameters_Band2", 1),
     "brdf_vol_nir": ("BRDF_Albedo_Parameters_Band2", 2),
     "brdf_geo_nir": ("BRDF_Albedo_Parameters_Band2", 3),
     "brdf_iso_swir1": ("BRDF_Albedo_Parameters_Band6", 1),
     "brdf_vol_swir1": ("BRDF_Albedo_Parameters_Band6", 2),
     "brdf_geo_swir1": ("BRDF_Albedo_Parameters_Band6", 3),
+    "brdf_iso_swir2": ("BRDF_Albedo_Parameters_Band7", 1),
+    "brdf_vol_swir2": ("BRDF_Albedo_Parameters_Band7", 2),
+    "brdf_geo_swir2": ("BRDF_Albedo_Parameters_Band7", 3),
 }
 
 

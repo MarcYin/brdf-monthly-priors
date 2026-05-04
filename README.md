@@ -96,7 +96,7 @@ pytest
 
 ## Google Earth Engine Input
 
-The built-in GEE preset uses `edown` to download `MODIS/061/MCD43A1` native-grid GeoTIFF observations. The caller still supplies explicit temporal ranges; this package does not decide which days, months, or history windows to use.
+The built-in GEE preset uses `edown` to download `MODIS/061/MCD43A1` native-grid GeoTIFF observations. By default it requests `iso`, `vol`, and `geo` BRDF coefficients for red, green, blue, NIR, SWIR1, and SWIR2. The caller still supplies explicit temporal ranges; this package does not decide which days, months, or history windows to use.
 
 ```python
 from brdf_monthly_priors import Provider, ProviderConfig

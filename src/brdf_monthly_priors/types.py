@@ -20,12 +20,21 @@ DEFAULT_BANDS = (
     "brdf_iso_red",
     "brdf_vol_red",
     "brdf_geo_red",
+    "brdf_iso_green",
+    "brdf_vol_green",
+    "brdf_geo_green",
+    "brdf_iso_blue",
+    "brdf_vol_blue",
+    "brdf_geo_blue",
     "brdf_iso_nir",
     "brdf_vol_nir",
     "brdf_geo_nir",
     "brdf_iso_swir1",
     "brdf_vol_swir1",
     "brdf_geo_swir1",
+    "brdf_iso_swir2",
+    "brdf_vol_swir2",
+    "brdf_geo_swir2",
 )
 
 

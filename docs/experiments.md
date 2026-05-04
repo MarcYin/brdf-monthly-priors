@@ -7,7 +7,7 @@ This experiment compares two ways of building the same BRDF prior:
 - Google Earth Engine `MODIS/061/MCD43A1`, downloaded as native-grid GeoTIFFs through `edown`.
 - Official LP DAAC `MCD43A1.061` HDF granules, downloaded through Earthdata with `earthaccess`.
 
-Both paths use the same AOI, date window, band set, best-pixel compositor, output encoder, and STAC/GeoTIFF persistence. The experiment writes two prior products and a comparison summary.
+Both paths use the same AOI, date window, band set, best-pixel compositor, output encoder, and STAC/GeoTIFF persistence. The default band set covers MODIS red, green, blue, NIR, SWIR1, and SWIR2, with `iso`, `vol`, and `geo` BRDF kernel coefficients for each spectral band. The experiment writes two prior products and a comparison summary.
 
 ### Install
 
@@ -51,7 +51,6 @@ For a quick smoke run, limit the official granules:
 python examples/gee_vs_official_mcd43a1.py \
   --start-date 2024-07-01 \
   --end-date 2024-07-01 \
-  --band brdf_iso_red \
   --max-official-granules 1
 ```
 
@@ -132,6 +131,8 @@ produced a `6 x 12` native Sinusoidal grid at `463.3127165279165 m` resolution.
 | --- | --- |
 | Official granules downloaded | `1` |
 | Official observations overlapping the GEE grid | `1` |
+| Spectral bands covered | RGB, NIR, SWIR1, SWIR2 |
+| BRDF coefficient bands covered | `18` |
 | Encoded `prior.tif` arrays equal | `true` |
 | Encoded `uncertainty.tif` arrays equal | `true` |
 | Valid pixels per band | `63 / 72` |
@@ -149,12 +150,21 @@ contract that downstream users consume.
 | `brdf_iso_red` | 63 / 72 | 72 / 72 | 6.16e-09 | 1.49e-08 | 1.0 | 1.000000008 |
 | `brdf_vol_red` | 63 / 72 | 72 / 72 | 6.69e-09 | 1.49e-08 | 1.0 | 0.999999970 |
 | `brdf_geo_red` | 63 / 72 | 72 / 72 | 1.54e-09 | 3.73e-09 | 1.0 | 0.999999956 |
+| `brdf_iso_green` | 63 / 72 | 72 / 72 | 5.86e-09 | 1.49e-08 | 1.0 | 1.000000004 |
+| `brdf_vol_green` | 63 / 72 | 72 / 72 | 5.62e-09 | 1.49e-08 | 1.0 | 0.999999944 |
+| `brdf_geo_green` | 63 / 72 | 72 / 72 | 1.21e-09 | 3.73e-09 | 1.0 | 0.999999979 |
+| `brdf_iso_blue` | 63 / 72 | 72 / 72 | 4.88e-09 | 7.45e-09 | 1.0 | 0.999999918 |
+| `brdf_vol_blue` | 63 / 72 | 72 / 72 | 3.66e-09 | 1.49e-08 | 1.0 | 0.999999955 |
+| `brdf_geo_blue` | 63 / 72 | 72 / 72 | 1.31e-09 | 3.73e-09 | 1.0 | 0.999999941 |
 | `brdf_iso_nir` | 63 / 72 | 72 / 72 | 1.56e-08 | 2.98e-08 | 1.0 | 0.999999923 |
 | `brdf_vol_nir` | 63 / 72 | 72 / 72 | 1.49e-08 | 2.98e-08 | 1.0 | 0.999999945 |
 | `brdf_geo_nir` | 63 / 72 | 72 / 72 | 2.89e-09 | 7.45e-09 | 1.0 | 0.999999965 |
 | `brdf_iso_swir1` | 63 / 72 | 72 / 72 | 1.29e-08 | 2.98e-08 | 1.0 | 0.999999939 |
 | `brdf_vol_swir1` | 63 / 72 | 72 / 72 | 8.49e-09 | 1.49e-08 | 1.0 | 0.999999983 |
 | `brdf_geo_swir1` | 63 / 72 | 72 / 72 | 2.48e-09 | 7.45e-09 | 1.0 | 0.999999943 |
+| `brdf_iso_swir2` | 63 / 72 | 72 / 72 | 8.55e-09 | 1.49e-08 | 1.0 | 0.999999930 |
+| `brdf_vol_swir2` | 63 / 72 | 72 / 72 | 4.74e-09 | 1.49e-08 | 1.0 | 0.999999979 |
+| `brdf_geo_swir2` | 63 / 72 | 72 / 72 | 1.6e-09 | 3.73e-09 | 1.0 | 0.999999961 |
 
 ### Interpretation
 
