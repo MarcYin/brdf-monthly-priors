@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from brdf_monthly_priors.types import GridSpec, Observation
+from brdf_monthly_priors.types import MODIS_SINUSOIDAL_CRS, GridSpec, Observation
 
 MCD43A1_COLLECTION_ID = "MODIS/061/MCD43A1"
 MCD43A1_SCALE_FACTOR = 0.001
@@ -43,6 +44,7 @@ class GeeProductPreset:
     band_map: Mapping[str, str]
     quality_band_map: Mapping[str, str]
     scale_map: Mapping[str, float] = field(default_factory=dict)
+    quality_nodata_values: Tuple[int, ...] = ()
 
 
 MCD43A1_PRESET = GeeProductPreset(
@@ -50,6 +52,7 @@ MCD43A1_PRESET = GeeProductPreset(
     band_map=MCD43A1_BAND_MAP,
     quality_band_map=MCD43A1_QUALITY_BAND_MAP,
     scale_map=dict.fromkeys(MCD43A1_BAND_MAP.values(), MCD43A1_SCALE_FACTOR),
+    quality_nodata_values=(255,),
 )
 
 
@@ -87,6 +90,7 @@ class EdownGeeSource:
         request_byte_limit: int = 48 * 1024 * 1024,
         overwrite: bool = False,
         fail_on_download_error: bool = True,
+        quality_nodata_values: Optional[Sequence[int]] = None,
     ):
         if not temporal_ranges:
             raise ValueError("EdownGeeSource requires explicit temporal_ranges supplied by the caller")
@@ -111,6 +115,7 @@ class EdownGeeSource:
         self.request_byte_limit = int(request_byte_limit)
         self.overwrite = bool(overwrite)
         self.fail_on_download_error = bool(fail_on_download_error)
+        self.quality_nodata_values = tuple(int(value) for value in (quality_nodata_values or ()))
         self._download_cache_key: Optional[tuple[Any, ...]] = None
         self._download_cache: tuple[Any, ...] = ()
 
@@ -132,6 +137,7 @@ class EdownGeeSource:
             band_map=preset.band_map,
             quality_band_map=preset.quality_band_map,
             scale_map=preset.scale_map,
+            quality_nodata_values=preset.quality_nodata_values,
             name=name,
             **kwargs,
         )
@@ -173,6 +179,7 @@ class EdownGeeSource:
                     band_names=tuple(str(band) for band in band_names),
                     band_map=self.band_map,
                     quality_band_map=self.quality_band_map,
+                    quality_nodata_values=self.quality_nodata_values,
                     source_id=str(result.image_id),
                 )
             )
@@ -201,6 +208,8 @@ class EdownGeeSource:
                 "EdownGeeSource requires the 'gee' extra: "
                 "pip install 'brdf-monthly-priors[gee]'"
             ) from exc
+        with suppress(ModuleNotFoundError):
+            _install_edown_sinusoidal_compatibility()
 
         summaries = []
         for start, end in self.temporal_ranges:
@@ -261,6 +270,86 @@ def _edown_band_selection(
     return tuple(selected)
 
 
+def _install_edown_sinusoidal_compatibility() -> None:
+    try:
+        import edown.discovery as edown_discovery
+        import edown.download as edown_download
+        import edown.grid as edown_grid
+    except ImportError:
+        raise
+
+    if getattr(edown_download, "_brdf_monthly_priors_sin_patch", False):
+        return
+
+    original_get_image_grid_info = edown_grid.get_image_grid_info
+
+    def get_image_grid_info(image_info: Mapping[str, Any]) -> dict[str, Any]:
+        grid = dict(original_get_image_grid_info(image_info))
+        if _is_modis_sinusoidal_code(grid.get("crs")):
+            grid["ee_crs"] = grid["crs"]
+            grid["crs"] = MODIS_SINUSOIDAL_CRS
+        return grid
+
+    def fetch_chunk(job: Any, task: Any, config: Any) -> Any:
+        import time
+
+        import ee
+        from edown.grid import structured_to_hwc_array
+
+        row, col, chunk_h, chunk_w = task
+        request = {
+            "fileFormat": "NUMPY_NDARRAY",
+            "bandIds": list(job.image.selected_band_ids),
+            "grid": {
+                "dimensions": {"width": int(chunk_w), "height": int(chunk_h)},
+                "crsCode": job.grid.get("ee_crs", job.grid["crs"]),
+                "affineTransform": {
+                    "scaleX": job.grid["x_scale"],
+                    "shearX": 0,
+                    "translateX": job.grid["origin_x"] + col * job.grid["x_scale"],
+                    "shearY": 0,
+                    "scaleY": job.grid["y_scale"],
+                    "translateY": job.grid["origin_y"] + row * job.grid["y_scale"],
+                },
+            },
+        }
+        if job.expression is None:
+            request["assetId"] = job.image.image_id
+        else:
+            request["expression"] = job.expression
+
+        delay_seconds = config.retry_delay_seconds
+        for attempt in range(1, config.max_retries + 1):
+            try:
+                raw = (
+                    ee.data.getPixels(request)
+                    if "assetId" in request
+                    else ee.data.computePixels(request)
+                )
+                data = np.array(
+                    structured_to_hwc_array(raw, job.image.selected_band_ids),
+                    dtype=np.dtype(job.image.output_dtype),
+                    copy=True,
+                )
+                return row, col, data
+            except Exception:
+                if attempt == config.max_retries:
+                    raise
+                time.sleep(delay_seconds)
+                delay_seconds *= 2
+        raise edown_download.DownloadError("Unexpected retry termination while downloading chunks.")
+
+    edown_grid.get_image_grid_info = get_image_grid_info
+    edown_discovery.get_image_grid_info = get_image_grid_info
+    edown_download.get_image_grid_info = get_image_grid_info
+    edown_download._fetch_chunk = fetch_chunk
+    edown_download._brdf_monthly_priors_sin_patch = True
+
+
+def _is_modis_sinusoidal_code(value: Any) -> bool:
+    return str(value).upper() in {"SR-ORG:6974", "SR_ORG:6974"}
+
+
 def _successful_results(summaries: Sequence[Any]) -> tuple[Any, ...]:
     results = []
     for summary in summaries:
@@ -315,6 +404,7 @@ def _read_edown_tiff(
     band_names: Sequence[str],
     band_map: Mapping[str, str],
     quality_band_map: Mapping[str, str],
+    quality_nodata_values: Sequence[int],
     source_id: str,
 ) -> Observation:
     import rasterio
@@ -342,6 +432,11 @@ def _read_edown_tiff(
             quality = np.zeros(grid.shape, dtype="uint16")
         else:
             quality = np.maximum.reduce(quality_arrays).astype("uint16", copy=False)
+        if quality_nodata_values:
+            quality = np.where(np.isin(quality, quality_nodata_values), 65535, quality).astype(
+                "uint16",
+                copy=False,
+            )
         return Observation(
             data=data,
             quality=quality,

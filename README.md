@@ -81,6 +81,12 @@ Optional Google Earth Engine download support through `edown`:
 pip install "brdf-monthly-priors[gee]"
 ```
 
+Optional experiment dependencies for the GEE-vs-official comparison:
+
+```bash
+pip install "brdf-monthly-priors[experiments]"
+```
+
 Development install:
 
 ```bash

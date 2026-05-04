@@ -47,6 +47,11 @@ earthdata = [
 gee = [
   "edown>=0.2.1",
 ]
+experiments = [
+  "earthaccess>=0.10",
+  "edown>=0.2.1",
+  "pyhdf>=0.11.6",
+]
 raster = []
 docs = [
   "mkdocs>=1.6",
@@ -63,6 +68,7 @@ dev = [
 all = [
   "edown>=0.2.1",
   "earthaccess>=0.10",
+  "pyhdf>=0.11.6",
   "mkdocs>=1.6",
   "mkdocs-material>=9.5",
   "mkdocstrings[python]>=0.25",
@@ -90,6 +96,7 @@ include = [
   "/src",
   "/tests",
   "/docs",
+  "/examples",
   "/README.md",
   "/LICENSE",
   "/mkdocs.yml",

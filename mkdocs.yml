@@ -21,6 +21,7 @@ nav:
   - Quickstart: quickstart.md
   - Provider API: api.md
   - CLI: cli.md
+  - Experiments: experiments.md
   - STAC/GeoTIFF Schema: schema.md
   - SIAC Integration: siac-integration.md
 plugins:
